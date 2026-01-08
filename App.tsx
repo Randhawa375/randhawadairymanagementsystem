@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  LayoutDashboard, 
-  FileText, 
+import {
+  LayoutDashboard,
+  FileText,
   User as UserIcon,
   Download,
   LogOut,
@@ -14,6 +14,7 @@ import autoTable from 'jspdf-autotable';
 import Dashboard from './components/Dashboard';
 import AnimalManager from './components/AnimalManager';
 import ReportsManager from './components/ReportsManager';
+import MilkFinancialDashboard from './components/MilkFinancialDashboard';
 import Auth from './components/Auth';
 import { Animal, FarmLocation, AnimalCategory, ReproductiveStatus, User } from './types';
 import { formatDate } from './utils/helpers';
@@ -21,11 +22,11 @@ import { supabase } from './lib/supabase';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [view, setView] = useState<'dashboard' | 'list' | 'reports'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'list' | 'reports' | 'financial'>('dashboard');
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [activeFarm, setActiveFarm] = useState<FarmLocation | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [reportFilter, setReportFilter] = useState<{status?: ReproductiveStatus}>({});
+  const [reportFilter, setReportFilter] = useState<{ status?: ReproductiveStatus }>({});
   const [loading, setLoading] = useState(true);
 
   const FARM_NAME = "Randhawa Dairy Animal Management System";
@@ -91,7 +92,7 @@ const App: React.FC = () => {
    */
   const sanitizeAnimal = (animal: Animal, userId: string) => {
     const clean: any = { ...animal, user_id: userId };
-    
+
     // Postgres TIMESTAMPTZ columns reject empty strings but accept nulls
     const dateFields = ['inseminationDate', 'expectedCalvingDate', 'calvingDate'];
     dateFields.forEach(field => {
@@ -121,7 +122,7 @@ const App: React.FC = () => {
       const { error } = await supabase
         .from('animals')
         .upsert(cleanData, { onConflict: 'id' });
-      
+
       if (error) throw error;
     } catch (err) {
       console.error('Individual Sync Error:', err);
@@ -148,7 +149,7 @@ const App: React.FC = () => {
       const { error } = await supabase
         .from('animals')
         .upsert(cleanBatch, { onConflict: 'id' });
-      
+
       if (error) throw error;
     } catch (err) {
       console.error('Batch Sync Error:', err);
@@ -167,7 +168,7 @@ const App: React.FC = () => {
         .from('animals')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
     } catch (err) {
       console.error('Delete Sync Error:', err);
@@ -196,22 +197,22 @@ const App: React.FC = () => {
     const data = dataToUse || filteredAnimals;
     const date = new Date().toLocaleDateString('en-GB');
     const doc = new jsPDF();
-    
+
     doc.setFontSize(22);
-    doc.setTextColor(15, 23, 42); 
+    doc.setTextColor(15, 23, 42);
     doc.text(FARM_NAME, 105, 15, { align: 'center' });
-    
+
     doc.setFontSize(10);
-    doc.setTextColor(100, 116, 139); 
+    doc.setTextColor(100, 116, 139);
     doc.text(`Official Animal Inventory Record | Proprietor: ${PROPRIETOR}`, 105, 21, { align: 'center' });
-    
+
     doc.setDrawColor(203, 213, 225);
     doc.line(15, 25, 195, 25);
 
     doc.setFontSize(14);
-    doc.setTextColor(30, 41, 59); 
+    doc.setTextColor(30, 41, 59);
     doc.text(`${titleSuffix || 'Herd Inventory Summary'}`, 15, 35);
-    
+
     doc.setFontSize(10);
     doc.text(`Total Animals: ${data.length}`, 15, 41);
     doc.text(`Date: ${date}`, 195, 41, { align: 'right' });
@@ -232,10 +233,10 @@ const App: React.FC = () => {
     })).filter(item => item.count > 0);
 
     const maxLen = Math.max(farmCounts.length, categoryCounts.length, statusCounts.length);
-    
+
     const summaryHeader = [['Farm Distribution', 'Qty', '', 'Category Breakdown', 'Qty', '', 'Reproductive Status', 'Qty']];
     const summaryBody = [];
-    
+
     for (let i = 0; i < maxLen; i++) {
       summaryBody.push([
         farmCounts[i]?.label || '',
@@ -327,7 +328,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-tight">
-                Randhawa Dairy Animal Management System <br/><span className="text-sm font-bold opacity-60"> </span>
+                Randhawa Dairy Animal Management System <br /><span className="text-sm font-bold opacity-60"> </span>
               </h1>
               <div className="flex items-center gap-4 mt-1">
                 <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -335,7 +336,7 @@ const App: React.FC = () => {
                   <span>Proprietor: {PROPRIETOR}</span>
                 </div>
                 <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-                <button 
+                <button
                   onClick={handleLogout}
                   className="flex items-center gap-1.5 text-[10px] font-black text-rose-600 uppercase tracking-widest hover:text-rose-800 transition-colors"
                 >
@@ -352,7 +353,7 @@ const App: React.FC = () => {
               <FarmToggle active={activeFarm === FarmLocation.MILKING_FARM} onClick={() => { setActiveFarm(FarmLocation.MILKING_FARM); setSearchQuery(''); }} label="Milking Farm" />
               <FarmToggle active={activeFarm === FarmLocation.HEIFER_FARM} onClick={() => { setActiveFarm(FarmLocation.HEIFER_FARM); setSearchQuery(''); }} label="Cattle Farm" />
             </div>
-            <button 
+            <button
               onClick={() => handleDownloadPDF(animals, 'Full Inventory Summary')}
               className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 hover:bg-black transition-all shadow-md"
             >
@@ -370,15 +371,16 @@ const App: React.FC = () => {
           ) : (
             <NavItem active={view === 'reports'} onClick={() => setView('reports')} icon={<FileText size={18} />} label="Summary Reports" />
           )}
+          <NavItem active={view === 'financial'} onClick={() => setView('financial')} icon={<Download size={18} className="rotate-180" />} label="Milk Finance" />
         </div>
       </nav>
 
       <main className="flex-1 container mx-auto p-4 md:p-8">
         {view === 'dashboard' && (
-          <Dashboard 
-            animals={filteredAnimals} 
+          <Dashboard
+            animals={filteredAnimals}
             allAnimals={animals}
-            farmName={activeFarm === 'all' ? 'Overall Management' : activeFarm} 
+            farmName={activeFarm === 'all' ? 'Overall Management' : activeFarm}
             activeFarm={activeFarm}
             onNavigateToReport={handleAlertAction}
             onAlertClick={handleAlertAction}
@@ -386,25 +388,32 @@ const App: React.FC = () => {
             onUpdateBatch={onSyncBatch}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
+            onNavigateToFinance={() => setView('financial')}
           />
         )}
         {view === 'list' && activeFarm !== 'all' && (
-          <AnimalManager 
-            animals={filteredAnimals} 
-            allAnimals={animals} 
+          <AnimalManager
+            animals={filteredAnimals}
+            allAnimals={animals}
             onSave={onSyncAnimal}
             onBatchSave={onSyncBatch}
             onDelete={onSyncDelete}
-            searchQuery={searchQuery} 
-            setSearchQuery={setSearchQuery} 
-            activeFarm={activeFarm} 
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            activeFarm={activeFarm}
           />
         )}
         {view === 'reports' && activeFarm === 'all' && (
-          <ReportsManager 
-            animals={animals} 
-            initialStatus={reportFilter.status} 
+          <ReportsManager
+            animals={animals}
+            initialStatus={reportFilter.status}
             onDownload={(data, title) => handleDownloadPDF(data, title)}
+          />
+        )}
+        {view === 'financial' && (
+          <MilkFinancialDashboard
+            onBack={() => setView('dashboard')}
+            currentUser={currentUser}
           />
         )}
       </main>
@@ -423,7 +432,7 @@ const App: React.FC = () => {
 };
 
 const FarmToggle = ({ active, onClick, label }: any) => (
-  <button 
+  <button
     onClick={onClick}
     className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all ${active ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
   >
@@ -432,7 +441,7 @@ const FarmToggle = ({ active, onClick, label }: any) => (
 );
 
 const NavItem = ({ active, onClick, icon, label }: any) => (
-  <button 
+  <button
     onClick={onClick}
     className={`py-4 px-6 border-b-2 font-black text-xs flex items-center gap-2.5 transition-all ${active ? 'border-slate-900 text-slate-900 bg-slate-50' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
   >

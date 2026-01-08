@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Activity, 
-  ShieldCheck, 
-  Timer, 
-  Users, 
-  Baby, 
-  Search, 
-  History, 
-  X, 
+import {
+  Activity,
+  ShieldCheck,
+  Timer,
+  Users,
+  Baby,
+  Search,
+  History,
+  X,
   RotateCcw,
   CheckCircle2,
   XCircle,
@@ -22,7 +22,8 @@ import {
   Clipboard,
   Bell,
   ArrowRight,
-  Edit2
+  Edit2,
+  DollarSign
 } from 'lucide-react';
 import { Animal, ReproductiveStatus, AnimalCategory, FarmLocation, HistoryEvent } from '../types';
 import AnimalFormModal from './AnimalFormModal';
@@ -39,36 +40,38 @@ interface DashboardProps {
   onUpdateBatch: (animals: Animal[]) => void;
   searchQuery: string;
   setSearchQuery: (val: string) => void;
+  onNavigateToFinance: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ 
-  animals, 
-  allAnimals, 
-  farmName, 
+const Dashboard: React.FC<DashboardProps> = ({
+  animals,
+  allAnimals,
+  farmName,
   activeFarm,
-  onNavigateToReport, 
-  onAlertClick, 
+  onNavigateToReport,
+  onAlertClick,
   onUpdateAnimal,
   onUpdateBatch,
   searchQuery,
-  setSearchQuery
+  setSearchQuery,
+  onNavigateToFinance
 }) => {
   const [viewHistoryAnimal, setViewHistoryAnimal] = useState<Animal | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Animal | undefined>(undefined);
   const profileRef = useRef<HTMLDivElement>(null);
-  
+
   const [pendingCheckAnimal, setPendingCheckAnimal] = useState<Animal | null>(null);
   const [pendingCalvingAnimal, setPendingCalvingAnimal] = useState<Animal | null>(null);
   const [pendingDryAnimal, setPendingDryAnimal] = useState<Animal | null>(null);
-  
+
   const [calvingDate, setCalvingDate] = useState(new Date().toISOString().split('T')[0]);
   const [calvingDescription, setCalvingDescription] = useState('');
   const [calfGender, setCalfGender] = useState<'male' | 'female'>('female');
   const [calfTag, setCalfTag] = useState('');
 
-  const isFemaleBreeder = (a: Animal) => 
-    a.category !== AnimalCategory.CALF_MALE && 
+  const isFemaleBreeder = (a: Animal) =>
+    a.category !== AnimalCategory.CALF_MALE &&
     a.category !== AnimalCategory.CATTLE;
 
   const total = animals.length;
@@ -93,7 +96,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const animalsReadyForCalving = animals.filter(a => {
     if ((a.status !== ReproductiveStatus.PREGNANT && a.status !== ReproductiveStatus.DRY) || !a.expectedCalvingDate) return false;
     const days = helpers.getDaysToCalving(a.expectedCalvingDate);
-    return days !== null && days <= 0;
+    return days !== null && days <= 5;
   });
 
   const animalsDueForDry = animals.filter(a => {
@@ -157,10 +160,10 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleDryAction = (animal: Animal, confirm: boolean) => {
     if (confirm) {
-      let updatedAnimal: Animal = { 
-        ...animal, 
-        status: ReproductiveStatus.DRY, 
-        lastUpdated: new Date().toISOString() 
+      let updatedAnimal: Animal = {
+        ...animal,
+        status: ReproductiveStatus.DRY,
+        lastUpdated: new Date().toISOString()
       };
       updatedAnimal = addHistoryEvent(updatedAnimal, {
         type: 'GENERAL',
@@ -175,7 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleCalving = (e: React.FormEvent) => {
     e.preventDefault();
     if (!pendingCalvingAnimal || !calfTag) return;
-    
+
     const now = new Date().toISOString();
     const newCalf: Animal = {
       id: helpers.generateId(),
@@ -193,14 +196,14 @@ const Dashboard: React.FC<DashboardProps> = ({
       lastUpdated: now
     };
 
-    let updatedMother: Animal = { 
-      ...pendingCalvingAnimal, 
-      status: ReproductiveStatus.NEWLY_CALVED, 
+    let updatedMother: Animal = {
+      ...pendingCalvingAnimal,
+      status: ReproductiveStatus.NEWLY_CALVED,
       calvingDate: calvingDate,
-      expectedCalvingDate: undefined, 
+      expectedCalvingDate: undefined,
       inseminationDate: undefined,
       calvesIds: [...(pendingCalvingAnimal.calvesIds || []), newCalf.id],
-      lastUpdated: now 
+      lastUpdated: now
     };
 
     updatedMother = addHistoryEvent(updatedMother, {
@@ -222,12 +225,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (!editTarget) return;
     let updatedAnimal: Animal = { ...editTarget, ...data, lastUpdated: new Date().toISOString() };
     if (data.status && data.status !== editTarget.status) {
-        updatedAnimal = addHistoryEvent(updatedAnimal, {
-          type: 'GENERAL',
-          date: new Date().toISOString(),
-          details: `Status manually changed to: ${data.status}`,
-          remarks: data.remarks
-        });
+      updatedAnimal = addHistoryEvent(updatedAnimal, {
+        type: 'GENERAL',
+        date: new Date().toISOString(),
+        details: `Status manually changed to: ${data.status}`,
+        remarks: data.remarks
+      });
     }
     onUpdateAnimal(updatedAnimal);
     setIsEditModalOpen(false);
@@ -244,9 +247,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
         <div className="relative w-full md:w-96">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Search Tag Number (نمبر تلاش کریں)..." 
+          <input
+            type="text"
+            placeholder="Search Tag Number (نمبر تلاش کریں)..."
             className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-black text-slate-900 text-lg shadow-inner"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -261,6 +264,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Breeding & Management Status (جانوروں کی حالت)</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+          <StatCard label="Finance" subLabel="(حساب کتاب)" value="View" icon={<DollarSign size={24} />} color="emerald" onClick={onNavigateToFinance} />
           <StatCard label="Total Animals" subLabel="(کل جانور)" value={total} icon={<Users size={24} />} color="indigo" />
           <StatCard label="Newly Calved" subLabel="(تازہ سوئی)" value={newlyCalvedCount} icon={<Sparkles size={24} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.NEWLY_CALVED)} />
           <StatCard label="Pregnant" subLabel="(گابھن)" value={pregnantCount} icon={<ShieldCheck size={24} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.PREGNANT)} />
@@ -291,12 +295,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Profile Info (جانور کی تفصیل)</p>
                 <div className="flex items-center gap-3">
                   <h2 className="text-4xl font-black text-slate-900 tracking-tighter">{searchedAnimal.tagNumber}</h2>
-                  <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
-                    searchedAnimal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                    searchedAnimal.status === ReproductiveStatus.INSEMINATED ? 'bg-amber-50 text-amber-800 border-amber-200' : 
-                    searchedAnimal.status === ReproductiveStatus.DRY ? 'bg-blue-50 text-blue-800 border-blue-200' :
-                    'bg-slate-50 text-slate-600 border-slate-300'
-                  }`}>
+                  <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${searchedAnimal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                    searchedAnimal.status === ReproductiveStatus.INSEMINATED ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                      searchedAnimal.status === ReproductiveStatus.DRY ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                        'bg-slate-50 text-slate-600 border-slate-300'
+                    }`}>
                     {searchedAnimal.status}
                   </div>
                 </div>
@@ -306,14 +309,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-slate-200">{searchedAnimal.category}</span>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 no-print">
               <button onClick={() => setViewHistoryAnimal(searchedAnimal)} className="p-2.5 bg-slate-900 text-white hover:bg-black rounded-xl transition-all shadow-md flex items-center gap-2">
                 <History size={18} />
                 <span className="font-black text-[10px] uppercase tracking-widest">History</span>
               </button>
-              <button 
-                onClick={() => { setEditTarget(searchedAnimal); setIsEditModalOpen(true); }} 
+              <button
+                onClick={() => { setEditTarget(searchedAnimal); setIsEditModalOpen(true); }}
                 className="p-2.5 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-xl transition-all border border-indigo-200"
                 title="Edit Record"
               >
@@ -326,38 +329,38 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
-            {motherTag && <DataBlock label="Mother Tag" value={motherTag} icon={<Users size={14}/>} />}
-            
+            {motherTag && <DataBlock label="Mother Tag" value={motherTag} icon={<Users size={14} />} />}
+
             {searchedAnimal.inseminationDate && (
-              <DataBlock label="Insemination Date" value={helpers.formatDate(searchedAnimal.inseminationDate)} icon={<Timer size={14}/>} />
+              <DataBlock label="Insemination Date" value={helpers.formatDate(searchedAnimal.inseminationDate)} icon={<Timer size={14} />} />
             )}
-            
+
             {searchedAnimal.semenName && (
-              <DataBlock label="Semen (ٹیکہ)" value={searchedAnimal.semenName} icon={<Activity size={14}/>} />
+              <DataBlock label="Semen (ٹیکہ)" value={searchedAnimal.semenName} icon={<Activity size={14} />} />
             )}
-            
+
             {searchedAnimal.expectedCalvingDate && (
-              <DataBlock label="Expected Calving" value={helpers.formatDate(searchedAnimal.expectedCalvingDate)} icon={<Calendar size={14}/>} color="emerald" />
+              <DataBlock label="Expected Calving" value={helpers.formatDate(searchedAnimal.expectedCalvingDate)} icon={<Calendar size={14} />} color="emerald" />
             )}
 
             {(searchedAnimal.status === ReproductiveStatus.PREGNANT || searchedAnimal.status === ReproductiveStatus.DRY) && searchedAnimal.expectedCalvingDate && (
-              <DataBlock 
-                label="Days Remaining" 
+              <DataBlock
+                label="Days Remaining"
                 value={(() => {
                   const d = helpers.getDaysToCalving(searchedAnimal.expectedCalvingDate);
                   if (d === null) return '0';
                   return d < 0 ? `${Math.abs(d)} Days Overdue` : `${d} Days Remaining`;
-                })()} 
-                icon={<Baby size={14}/>}
+                })()}
+                icon={<Baby size={14} />}
                 color={helpers.getDaysToCalving(searchedAnimal.expectedCalvingDate)! < 0 ? 'rose' : 'emerald'}
               />
             )}
 
             {searchedAnimal.status === ReproductiveStatus.DRY && (
-              <DataBlock label="Dry Since" value={`${helpers.getDaysSinceLastUpdate(searchedAnimal.lastUpdated) || 0} Days`} icon={<Wind size={14}/>} />
+              <DataBlock label="Dry Since" value={`${helpers.getDaysSinceLastUpdate(searchedAnimal.lastUpdated) || 0} Days`} icon={<Wind size={14} />} />
             )}
 
-            <DataBlock label="Last Updated" value={helpers.formatDate(searchedAnimal.lastUpdated)} icon={<CheckCircle2 size={14}/>} />
+            <DataBlock label="Last Updated" value={helpers.formatDate(searchedAnimal.lastUpdated)} icon={<CheckCircle2 size={14} />} />
           </div>
 
           {searchedAnimal.remarks && (
@@ -386,56 +389,56 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <AlertGroup 
-              title="Calving Due" 
-              subTitle="سوئی کے قریب" 
-              count={animalsReadyForCalving.length} 
+            <AlertGroup
+              title="Calving Due"
+              subTitle="سوئی کے قریب"
+              count={animalsReadyForCalving.length}
               color="rose"
               icon={<Baby size={20} />}
             >
               {animalsReadyForCalving.map(a => (
-                <AlertItem 
-                  key={a.id} 
-                  animal={a} 
-                  color="rose" 
+                <AlertItem
+                  key={a.id}
+                  animal={a}
+                  color="rose"
                   info={helpers.getDaysToCalving(a.expectedCalvingDate!)! <= 0 ? 'Due Now' : `${helpers.getDaysToCalving(a.expectedCalvingDate!)!} Days Left`}
-                  onClick={() => setPendingCalvingAnimal(a)} 
+                  onClick={() => setPendingCalvingAnimal(a)}
                 />
               ))}
             </AlertGroup>
 
-            <AlertGroup 
-              title="Dry Off Needed" 
-              subTitle="خشک کرنے والے" 
-              count={animalsDueForDry.length} 
+            <AlertGroup
+              title="Dry Off Needed"
+              subTitle="خشک کرنے والے"
+              count={animalsDueForDry.length}
               color="blue"
               icon={<Wind size={20} />}
             >
               {animalsDueForDry.map(a => (
-                <AlertItem 
-                  key={a.id} 
-                  animal={a} 
-                  color="blue" 
-                  info="Gestation 7.5m+" 
-                  onClick={() => setPendingDryAnimal(a)} 
+                <AlertItem
+                  key={a.id}
+                  animal={a}
+                  color="blue"
+                  info="Gestation 7.5m+"
+                  onClick={() => setPendingDryAnimal(a)}
                 />
               ))}
             </AlertGroup>
 
-            <AlertGroup 
-              title="Pregnancy Check" 
-              subTitle="ٹیکہ کا معائنہ" 
-              count={animalsDueForCheck.length} 
+            <AlertGroup
+              title="Pregnancy Check"
+              subTitle="ٹیکہ کا معائنہ"
+              count={animalsDueForCheck.length}
               color="amber"
               icon={<Timer size={20} />}
             >
               {animalsDueForCheck.map(a => (
-                <AlertItem 
-                  key={a.id} 
-                  animal={a} 
-                  color="amber" 
-                  info="45 Day Milestone" 
-                  onClick={() => setPendingCheckAnimal(a)} 
+                <AlertItem
+                  key={a.id}
+                  animal={a}
+                  color="amber"
+                  info="45 Day Milestone"
+                  onClick={() => setPendingCheckAnimal(a)}
                 />
               ))}
             </AlertGroup>
@@ -446,7 +449,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Detailed Farm Inventory Breakdowns */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {(activeFarm === 'all' || activeFarm === FarmLocation.MILKING_FARM) && (
-          <InventorySection title="MILKING FARM (دودھ والا فارم)" color="indigo" icon={<Milk size={24}/>}>
+          <InventorySection title="MILKING FARM (دودھ والا فارم)" color="indigo" icon={<Milk size={24} />}>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <SimpleBox label="NEWLY CALVED" subLabel="(تازہ سوئی)" value={allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.NEWLY_CALVED).length} />
               <SimpleBox label="PREGNANT" subLabel="(گابھن)" value={allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.PREGNANT).length} />
@@ -459,7 +462,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </InventorySection>
         )}
         {(activeFarm === 'all' || activeFarm === FarmLocation.HEIFER_FARM) && (
-          <InventorySection title="CATTLE FARM (کٹی والا فارم)" color="emerald" icon={<Beef size={24}/>}>
+          <InventorySection title="CATTLE FARM (کٹی والا فارم)" color="emerald" icon={<Beef size={24} />}>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <SimpleBox label="HEIFERS" subLabel="(بچھڑیاں)" value={allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.HEIFER).length} />
               <SimpleBox label="OPEN" subLabel="(خالی)" value={allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.status === ReproductiveStatus.OPEN).length} />
@@ -474,12 +477,12 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Modals */}
       {isEditModalOpen && (
-        <AnimalFormModal 
-          isOpen={isEditModalOpen} 
-          onClose={() => { setIsEditModalOpen(false); setEditTarget(undefined); }} 
-          onSave={handleSaveEdit} 
-          initialData={editTarget} 
-          mothersList={allAnimals} 
+        <AnimalFormModal
+          isOpen={isEditModalOpen}
+          onClose={() => { setIsEditModalOpen(false); setEditTarget(undefined); }}
+          onSave={handleSaveEdit}
+          initialData={editTarget}
+          mothersList={allAnimals}
         />
       )}
 
@@ -488,7 +491,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden border-t-[16px] border-blue-500 animate-in zoom-in duration-300">
             <div className="p-10 text-center">
               <h3 className="text-3xl font-black text-slate-900 mb-2">خشک جانور (Dry Animal)</h3>
-              <p className="font-black text-slate-500 mb-8 uppercase tracking-widest text-[11px]">Do you want to shift Tag #{pendingDryAnimal.tagNumber} to Dry status?<br/>کیا آپ اس جانور کو خشک کرنا چاہتے ہیں؟</p>
+              <p className="font-black text-slate-500 mb-8 uppercase tracking-widest text-[11px]">Do you want to shift Tag #{pendingDryAnimal.tagNumber} to Dry status?<br />کیا آپ اس جانور کو خشک کرنا چاہتے ہیں؟</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <button onClick={() => handleDryAction(pendingDryAnimal, true)} className="flex flex-col items-center gap-3 p-6 rounded-[2rem] bg-blue-50 border-2 border-blue-200 text-blue-900 hover:bg-blue-100 transition-all">
                   <CheckCircle2 size={32} />
@@ -640,7 +643,7 @@ const AlertGroup = ({ title, subTitle, count, color, icon, children }: any) => {
         </div>
         <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black border-2 border-current`}>{count}</span>
       </div>
-      
+
       <div className="space-y-2 overflow-y-auto max-h-[220px] pr-1 custom-scrollbar">
         {children}
       </div>
@@ -656,7 +659,7 @@ const AlertItem = ({ animal, color, info, onClick }: any) => {
   };
 
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`group flex items-center justify-between p-3.5 rounded-2xl border transition-all cursor-pointer shadow-sm ${styles[color]}`}
     >
@@ -686,7 +689,7 @@ const StatCard = ({ label, subLabel, value, icon, color, onClick }: any) => {
       <div className="bg-white p-2.5 rounded-xl shadow-sm border border-slate-100 shrink-0">{icon}</div>
       <div className="min-w-0">
         <p className="text-[9px] font-black uppercase tracking-widest mb-0.5 opacity-70 leading-tight truncate">
-          {label} <br/> <span className="text-[8px] lowercase font-bold">{subLabel}</span>
+          {label} <br /> <span className="text-[8px] lowercase font-bold">{subLabel}</span>
         </p>
         <p className="text-2xl font-black text-slate-900 leading-none">{value}</p>
       </div>
@@ -726,7 +729,7 @@ const DataBlock = ({ label, value, icon, color }: any) => {
     default: 'bg-slate-50 border-slate-100 text-slate-900'
   };
   const currentStyle = color ? colorStyles[color] : colorStyles.default;
-  
+
   return (
     <div className={`p-3.5 rounded-xl border ${currentStyle}`}>
       <div className="flex items-center gap-2 mb-1">

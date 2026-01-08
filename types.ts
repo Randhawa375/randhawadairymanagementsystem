@@ -4,7 +4,7 @@ export enum AnimalCategory {
   CATTLE = 'Cattle', // Treated as male per user instruction
   HEIFER = 'Heifer',
   CALF_MALE = 'Male Calf',
-  CALF = 'Female Calf' 
+  CALF = 'Female Calf'
 }
 
 export enum ReproductiveStatus {
@@ -62,4 +62,18 @@ export interface Animal {
   motherId?: string;
   calvesIds?: string[];
   history: HistoryEvent[];
+}
+
+export interface MilkRecord {
+  id: string;
+  date: string;
+  morningQty: number;
+  eveningQty: number;
+  rate: number;
+}
+
+export interface FinancialRecord {
+  id: string; // usually 'config' or userId
+  previousBalance: number;
+  lastUpdated: string;
 }
