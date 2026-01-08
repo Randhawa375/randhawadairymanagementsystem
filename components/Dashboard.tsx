@@ -22,8 +22,7 @@ import {
   Clipboard,
   Bell,
   ArrowRight,
-  Edit2,
-  DollarSign
+  Edit2
 } from 'lucide-react';
 import { Animal, ReproductiveStatus, AnimalCategory, FarmLocation, HistoryEvent } from '../types';
 import AnimalFormModal from './AnimalFormModal';
@@ -40,7 +39,6 @@ interface DashboardProps {
   onUpdateBatch: (animals: Animal[]) => void;
   searchQuery: string;
   setSearchQuery: (val: string) => void;
-  onNavigateToFinance: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -53,8 +51,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onUpdateAnimal,
   onUpdateBatch,
   searchQuery,
-  setSearchQuery,
-  onNavigateToFinance
+  setSearchQuery
 }) => {
   const [viewHistoryAnimal, setViewHistoryAnimal] = useState<Animal | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -264,7 +261,6 @@ const Dashboard: React.FC<DashboardProps> = ({
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Breeding & Management Status (جانوروں کی حالت)</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-          <StatCard label="Finance" subLabel="(حساب کتاب)" value="View" icon={<DollarSign size={24} />} color="emerald" onClick={onNavigateToFinance} />
           <StatCard label="Total Animals" subLabel="(کل جانور)" value={total} icon={<Users size={24} />} color="indigo" />
           <StatCard label="Newly Calved" subLabel="(تازہ سوئی)" value={newlyCalvedCount} icon={<Sparkles size={24} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.NEWLY_CALVED)} />
           <StatCard label="Pregnant" subLabel="(گابھن)" value={pregnantCount} icon={<ShieldCheck size={24} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.PREGNANT)} />

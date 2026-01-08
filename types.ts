@@ -63,17 +63,3 @@ export interface Animal {
   calvesIds?: string[];
   history: HistoryEvent[];
 }
-
-export interface MilkRecord {
-  id: string;
-  date: string;
-  morningQty: number;
-  eveningQty: number;
-  rate: number;
-}
-
-export interface FinancialRecord {
-  id: string; // usually 'config' or userId
-  previousBalance: number;
-  lastUpdated: string;
-}

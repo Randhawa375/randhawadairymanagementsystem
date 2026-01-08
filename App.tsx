@@ -14,7 +14,6 @@ import autoTable from 'jspdf-autotable';
 import Dashboard from './components/Dashboard';
 import AnimalManager from './components/AnimalManager';
 import ReportsManager from './components/ReportsManager';
-import MilkFinancialDashboard from './components/MilkFinancialDashboard';
 import Auth from './components/Auth';
 import { Animal, FarmLocation, AnimalCategory, ReproductiveStatus, User } from './types';
 import { formatDate } from './utils/helpers';
@@ -22,7 +21,7 @@ import { supabase } from './lib/supabase';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [view, setView] = useState<'dashboard' | 'list' | 'reports' | 'financial'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'list' | 'reports'>('dashboard');
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [activeFarm, setActiveFarm] = useState<FarmLocation | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -371,7 +370,6 @@ const App: React.FC = () => {
           ) : (
             <NavItem active={view === 'reports'} onClick={() => setView('reports')} icon={<FileText size={18} />} label="Summary Reports" />
           )}
-          <NavItem active={view === 'financial'} onClick={() => setView('financial')} icon={<Download size={18} className="rotate-180" />} label="Milk Finance" />
         </div>
       </nav>
 
@@ -388,7 +386,6 @@ const App: React.FC = () => {
             onUpdateBatch={onSyncBatch}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            onNavigateToFinance={() => setView('financial')}
           />
         )}
         {view === 'list' && activeFarm !== 'all' && (
@@ -410,12 +407,7 @@ const App: React.FC = () => {
             onDownload={(data, title) => handleDownloadPDF(data, title)}
           />
         )}
-        {view === 'financial' && (
-          <MilkFinancialDashboard
-            onBack={() => setView('dashboard')}
-            currentUser={currentUser}
-          />
-        )}
+
       </main>
 
       <footer className="bg-white p-6 border-t border-slate-200">
