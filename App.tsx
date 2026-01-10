@@ -279,12 +279,28 @@ const App: React.FC = () => {
       a.category,
       a.farm,
       a.status,
-      a.expectedCalvingDate ? `Exp Calving: ${formatDate(a.expectedCalvingDate)}` : (a.remarks || '--')
+      (() => {
+        if (a.status === ReproductiveStatus.PREGNANT && a.expectedCalvingDate) {
+          const days = new Date(a.expectedCalvingDate).getTime() - new Date().getTime();
+          const daysLeft = Math.ceil(days / (1000 * 3600 * 24));
+          return `Exp: ${formatDate(a.expectedCalvingDate)}\n(${daysLeft} Days Remaining)`;
+        }
+        if (a.status === ReproductiveStatus.INSEMINATED && a.inseminationDate) {
+          const checkDate = new Date(a.inseminationDate);
+          checkDate.setDate(checkDate.getDate() + 45);
+          const daysToCheck = Math.ceil((checkDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+
+          const daysSince = Math.ceil((new Date().getTime() - new Date(a.inseminationDate).getTime()) / (1000 * 3600 * 24));
+
+          return `Day: ${daysSince}\nCheck in: ${daysToCheck} Days`;
+        }
+        return a.remarks || '--';
+      })()
     ]);
 
     autoTable(doc, {
       startY: tableStartY,
-      head: [['No.', 'Tag ID', 'Type/Category', 'Farm Location', 'Repro Status', 'Record Notes']],
+      head: [['No.', 'Tag ID', 'Type/Category', 'Farm Location', 'Repro Status', 'Timeline / Notes']],
       body: rows,
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], fontSize: 9, halign: 'center', textColor: [255, 255, 255] },
