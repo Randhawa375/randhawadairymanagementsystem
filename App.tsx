@@ -280,7 +280,7 @@ const App: React.FC = () => {
       a.farm,
       a.status,
       (() => {
-        if (a.status === ReproductiveStatus.PREGNANT && a.expectedCalvingDate) {
+        if ((a.status === ReproductiveStatus.PREGNANT || a.status === ReproductiveStatus.DRY) && a.expectedCalvingDate) {
           const days = new Date(a.expectedCalvingDate).getTime() - new Date().getTime();
           const daysLeft = Math.ceil(days / (1000 * 3600 * 24));
           return `Exp: ${formatDate(a.expectedCalvingDate)}\n(${daysLeft} Days Remaining)`;

@@ -126,7 +126,7 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({
                             <span className="text-slate-400 font-black uppercase text-[8px]">Exp Calving:</span>
                             <span className="text-emerald-700 font-black">{formatDate(animal.expectedCalvingDate)}</span>
                           </p>
-                          {animal.status === ReproductiveStatus.PREGNANT && (
+                          {(animal.status === ReproductiveStatus.PREGNANT || animal.status === ReproductiveStatus.DRY) && (
                             <p className="text-[10px] font-black text-slate-500">
                               {(() => {
                                 const days = helpers.getDaysToCalving(animal.expectedCalvingDate!);
