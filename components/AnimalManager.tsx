@@ -173,12 +173,17 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       lastUpdated: now
     };
 
+    // Capture previous insemination details for history BEFORE clearing them
+    const previousSemen = calvingMother.semenName || 'Unknown Semen';
+    const previousInsemDate = calvingMother.inseminationDate ? formatDate(calvingMother.inseminationDate) : 'Unknown Date';
+
     let updatedMother: Animal = {
       ...calvingMother,
       status: ReproductiveStatus.NEWLY_CALVED,
       calvingDate: calvingDate,
       expectedCalvingDate: undefined,
       inseminationDate: undefined,
+      semenName: undefined, // Clear semen name as well
       calvesIds: [...(calvingMother.calvesIds || []), newCalf.id],
       lastUpdated: now
     };
@@ -186,7 +191,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
     updatedMother = addHistoryEvent(updatedMother, {
       type: 'CALVING',
       date: calvingDate,
-      details: `Official Calving Recorded: Produced ${calfGender === 'male' ? 'Male Calf' : 'Female Calf'} (Tag: ${calfTag})`,
+      details: `Official Calving Recorded: Produced ${calfGender === 'male' ? 'Male Calf' : 'Female Calf'} (Tag: ${calfTag}).\nCycle Info: Semen ${previousSemen} used on ${previousInsemDate}.`,
       remarks: calvingDescription,
       calfId: newCalf.id
     });
