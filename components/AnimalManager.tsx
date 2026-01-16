@@ -387,6 +387,13 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                     <td className="p-4 no-print text-center">
                       <div className="flex gap-2 justify-center">
                         <button onClick={() => setViewHistoryAnimal(animal)} className="p-2.5 hover:bg-slate-200 text-slate-500 rounded-xl border border-slate-200 transition-all" title="History"><History size={18} /></button>
+                        <button
+                          onClick={() => handleShiftFarm(animal)}
+                          className="p-2.5 hover:bg-amber-50 text-amber-600 rounded-xl border border-slate-200 transition-all"
+                          title={`Shift to ${animal.farm === FarmLocation.MILKING_FARM ? 'Cattle Farm' : 'Milking Farm'}`}
+                        >
+                          <ArrowRightLeft size={18} />
+                        </button>
                         <button onClick={() => { setEditTarget(animal); setIsModalOpen(true); }} className="p-2.5 hover:bg-indigo-50 text-indigo-600 rounded-xl border border-slate-200 transition-all" title="Edit"><Edit2 size={18} /></button>
                         <button onClick={() => handleDelete(animal.id)} className="p-2.5 hover:bg-red-50 text-red-600 rounded-xl border border-slate-200 transition-all" title="Delete"><Trash2 size={18} /></button>
                       </div>
@@ -435,7 +442,13 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               </div>
             </div>
 
-            <div className="p-10 border-t bg-slate-50 flex justify-end no-print">
+            <div className="p-10 border-t bg-slate-50 flex justify-between items-center no-print">
+              <button
+                onClick={() => handleShiftFarm(viewHistoryAnimal)}
+                className="bg-amber-100 text-amber-900 px-8 py-4 rounded-[1.5rem] font-black text-sm uppercase tracking-widest shadow-sm hover:bg-amber-200 transition-colors flex items-center gap-3"
+              >
+                <ArrowRightLeft size={20} /> Shift Farm
+              </button>
               <button onClick={() => setViewHistoryAnimal(null)} className="bg-slate-900 text-white px-12 py-4 rounded-[1.5rem] font-black text-sm uppercase tracking-widest shadow-xl">Close Ledger</button>
             </div>
           </div>
