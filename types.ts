@@ -35,7 +35,7 @@ export interface User {
 
 export interface HistoryEvent {
   id: string;
-  type: 'INSEMINATION' | 'PREGNANCY_CHECK' | 'CALVING' | 'MEDICATION' | 'GENERAL';
+  type: 'INSEMINATION' | 'PREGNANCY_CHECK' | 'CALVING' | 'MEDICATION' | 'GENERAL' | 'FARM_SHIFT';
   date: string;
   details: string;
   remarks?: string;

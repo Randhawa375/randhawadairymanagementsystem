@@ -1,12 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Edit2, Trash2, Baby, History, X, Save, ClipboardList, Timer, Droplets, Wind } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Baby, History, X, Save, ClipboardList, Timer, Droplets, Wind, ArrowRightLeft } from 'lucide-react';
 import { Animal, AnimalCategory, ReproductiveStatus, FarmLocation, HistoryEvent } from '../types';
 import AnimalFormModal from './AnimalFormModal';
-import { 
-  formatDate, 
-  generateId, 
-  getDaysToCalving, 
+import {
+  formatDate,
+  generateId,
+  getDaysToCalving,
   getDaysToPregnancyCheck,
   getGestationDays,
   getDaysSinceLastUpdate
@@ -23,13 +23,13 @@ interface AnimalManagerProps {
   activeFarm: FarmLocation | 'all';
 }
 
-const AnimalManager: React.FC<AnimalManagerProps> = ({ 
-  animals, 
-  allAnimals, 
+const AnimalManager: React.FC<AnimalManagerProps> = ({
+  animals,
+  allAnimals,
   onSave,
   onBatchSave,
   onDelete,
-  searchQuery, 
+  searchQuery,
   setSearchQuery,
   activeFarm,
 }) => {
@@ -38,7 +38,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
   const [viewHistoryAnimal, setViewHistoryAnimal] = useState<Animal | null>(null);
   const [calvingMother, setCalvingMother] = useState<Animal | null>(null);
   const [editTarget, setEditTarget] = useState<Animal | undefined>(undefined);
-  
+
   const [calfGender, setCalfGender] = useState<'male' | 'female'>('female');
   const [calfTag, setCalfTag] = useState('');
   const [calvingDate, setCalvingDate] = useState(new Date().toISOString().split('T')[0]);
@@ -67,12 +67,44 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
 
     if (editTarget) {
       let updatedAnimal: Animal = { ...editTarget, ...data, lastUpdated: new Date().toISOString() };
-      
-      if (data.status && data.status !== editTarget.status) {
+
+      const isStatusChanged = data.status && data.status !== editTarget.status;
+      const isMedsChanged = data.medications && data.medications !== editTarget.medications;
+      const isInsemDataChanged = (data.inseminationDate !== editTarget.inseminationDate) || (data.semenName !== editTarget.semenName);
+
+      if (isStatusChanged) {
         updatedAnimal = addHistoryEvent(updatedAnimal, {
           type: 'GENERAL',
           date: new Date().toISOString(),
           details: `Status manually changed to: ${data.status}`,
+          remarks: data.remarks
+        });
+      }
+
+      // Specific History Logic
+      if (data.status === ReproductiveStatus.INSEMINATED && (isStatusChanged || isInsemDataChanged)) {
+        updatedAnimal = addHistoryEvent(updatedAnimal, {
+          type: 'INSEMINATION',
+          date: data.inseminationDate || new Date().toISOString(),
+          details: `Inseminated with ${data.semenName}`,
+          semen: data.semenName,
+          remarks: data.remarks
+        });
+      } else if (data.status === ReproductiveStatus.PREGNANT && isStatusChanged) {
+        updatedAnimal = addHistoryEvent(updatedAnimal, {
+          type: 'PREGNANCY_CHECK',
+          date: new Date().toISOString(),
+          details: `Confirmed Pregnant. Expected Calving: ${formatDate(data.expectedCalvingDate || '')}`,
+          remarks: data.remarks
+        });
+      }
+
+      if (isMedsChanged) {
+        updatedAnimal = addHistoryEvent(updatedAnimal, {
+          type: 'MEDICATION',
+          date: new Date().toISOString(),
+          details: `Medication / Treatment Updated`,
+          medications: data.medications,
           remarks: data.remarks
         });
       }
@@ -104,10 +136,26 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
     setEditTarget(undefined);
   };
 
+  const handleShiftFarm = (animal: Animal) => {
+    const newFarm = animal.farm === FarmLocation.MILKING_FARM ? FarmLocation.HEIFER_FARM : FarmLocation.MILKING_FARM;
+    const confirmMessage = `Are you sure you want to shift this animal from ${animal.farm} to ${newFarm}?`;
+
+    if (confirm(confirmMessage)) {
+      let updatedAnimal = { ...animal, farm: newFarm, lastUpdated: new Date().toISOString() };
+      updatedAnimal = addHistoryEvent(updatedAnimal, {
+        type: 'FARM_SHIFT',
+        date: new Date().toISOString(),
+        details: `Shifted from ${animal.farm} to ${newFarm}`,
+        remarks: 'Manual Shift'
+      });
+      onSave(updatedAnimal);
+    }
+  };
+
   const handleCalving = (e: React.FormEvent) => {
     e.preventDefault();
     if (!calvingMother || !calfTag) return;
-    
+
     const now = new Date().toISOString();
     const newCalf: Animal = {
       id: generateId(),
@@ -125,14 +173,14 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       lastUpdated: now
     };
 
-    let updatedMother: Animal = { 
-      ...calvingMother, 
-      status: ReproductiveStatus.NEWLY_CALVED, 
+    let updatedMother: Animal = {
+      ...calvingMother,
+      status: ReproductiveStatus.NEWLY_CALVED,
       calvingDate: calvingDate,
-      expectedCalvingDate: undefined, 
+      expectedCalvingDate: undefined,
       inseminationDate: undefined,
       calvesIds: [...(calvingMother.calvesIds || []), newCalf.id],
-      lastUpdated: now 
+      lastUpdated: now
     };
 
     updatedMother = addHistoryEvent(updatedMother, {
@@ -144,7 +192,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
     });
 
     onBatchSave([newCalf, updatedMother]);
-    
+
     setIsCalvingModalOpen(false);
     setCalfTag('');
     setCalvingDescription('');
@@ -166,15 +214,15 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       <div className="flex flex-col md:flex-row gap-4 items-center no-print bg-white p-6 rounded-2xl border border-slate-300 shadow-sm">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-          <input 
-            type="text" 
-            placeholder="Search by Tag Number..." 
+          <input
+            type="text"
+            placeholder="Search by Tag Number..."
             className="w-full pl-12 pr-4 py-4 bg-white border-2 border-slate-300 rounded-xl outline-none focus:border-indigo-600 font-black text-slate-900 text-xl"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <button 
+        <button
           onClick={() => { setEditTarget(undefined); setIsModalOpen(true); }}
           className="bg-slate-900 text-white px-10 py-4 rounded-xl font-black flex items-center justify-center gap-3 hover:bg-black transition-all shadow-md w-full md:w-auto text-lg"
         >
@@ -194,15 +242,14 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               </div>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <span className={`px-6 py-2 rounded-xl font-black text-lg border-2 ${
-                searchedAnimal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                searchedAnimal.status === ReproductiveStatus.INSEMINATED ? 'bg-amber-50 text-amber-800 border-amber-200' : 
-                searchedAnimal.status === ReproductiveStatus.DRY ? 'bg-blue-50 text-blue-800 border-blue-200' :
-                'bg-slate-50 text-slate-800 border-slate-300'
-              }`}>
+              <span className={`px-6 py-2 rounded-xl font-black text-lg border-2 ${searchedAnimal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                searchedAnimal.status === ReproductiveStatus.INSEMINATED ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                  searchedAnimal.status === ReproductiveStatus.DRY ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                    'bg-slate-50 text-slate-800 border-slate-300'
+                }`}>
                 {searchedAnimal.status}
               </span>
-              <button 
+              <button
                 onClick={() => setViewHistoryAnimal(searchedAnimal)}
                 className="flex items-center gap-2 text-indigo-600 font-black text-xs uppercase tracking-widest hover:underline"
               >
@@ -210,30 +257,36 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               </button>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <SummaryItem label="Breeding Date" value={formatDate(searchedAnimal.inseminationDate || '')} />
             {motherTag && <SummaryItem label="Mother Tag" value={motherTag} />}
-            <SummaryItem 
-              label={searchedAnimal.status === ReproductiveStatus.DRY ? "Expected Calving" : "Expected Calving"} 
-              value={searchedAnimal.expectedCalvingDate ? formatDate(searchedAnimal.expectedCalvingDate) : '--'} 
+            <SummaryItem
+              label={searchedAnimal.status === ReproductiveStatus.DRY ? "Expected Calving" : "Expected Calving"}
+              value={searchedAnimal.expectedCalvingDate ? formatDate(searchedAnimal.expectedCalvingDate) : '--'}
             />
-            <SummaryItem 
-              label="Days Left" 
+            <SummaryItem
+              label="Days Left"
               value={
-                searchedAnimal.expectedCalvingDate 
-                  ? `${getDaysToCalving(searchedAnimal.expectedCalvingDate) || '??'} Days` 
+                searchedAnimal.expectedCalvingDate
+                  ? `${getDaysToCalving(searchedAnimal.expectedCalvingDate) || '??'} Days`
                   : '--'
-              } 
+              }
             />
             <SummaryItem label="Last Update" value={formatDate(searchedAnimal.lastUpdated)} />
           </div>
 
           <div className="flex flex-wrap gap-2 justify-end pt-6 border-t border-slate-100">
             {(searchedAnimal.status === ReproductiveStatus.PREGNANT || searchedAnimal.status === ReproductiveStatus.DRY) && searchedAnimal.expectedCalvingDate && (
-              <QuickActionBtn onClick={() => { setCalvingMother(searchedAnimal); setIsCalvingModalOpen(true); }} icon={<Baby size={18}/>} label="Record Calving" color="blue" />
+              <QuickActionBtn onClick={() => { setCalvingMother(searchedAnimal); setIsCalvingModalOpen(true); }} icon={<Baby size={18} />} label="Record Calving" color="blue" />
             )}
-            <QuickActionBtn onClick={() => { setEditTarget(searchedAnimal); setIsModalOpen(true); }} icon={<Edit2 size={18}/>} label="Edit Profile" color="slate" />
+            <QuickActionBtn
+              onClick={() => handleShiftFarm(searchedAnimal)}
+              icon={<ArrowRightLeft size={18} />}
+              label={`Shift to ${searchedAnimal.farm === FarmLocation.MILKING_FARM ? 'Cattle Farm' : 'Milking Farm'}`}
+              color="amber"
+            />
+            <QuickActionBtn onClick={() => { setEditTarget(searchedAnimal); setIsModalOpen(true); }} icon={<Edit2 size={18} />} label="Edit Profile" color="slate" />
           </div>
         </div>
       )}
@@ -259,10 +312,10 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {animals.map(animal => {
-                const daysToCalving = (animal.status === ReproductiveStatus.PREGNANT || animal.status === ReproductiveStatus.DRY) && animal.expectedCalvingDate 
-                  ? getDaysToCalving(animal.expectedCalvingDate) 
+                const daysToCalving = (animal.status === ReproductiveStatus.PREGNANT || animal.status === ReproductiveStatus.DRY) && animal.expectedCalvingDate
+                  ? getDaysToCalving(animal.expectedCalvingDate)
                   : null;
-                
+
                 const daysToPregnancyCheck = animal.status === ReproductiveStatus.INSEMINATED && animal.inseminationDate
                   ? getDaysToPregnancyCheck(animal.inseminationDate)
                   : null;
@@ -286,15 +339,14 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                     </td>
                     <td className="p-4 text-center">
                       <div className="flex flex-col items-center gap-1">
-                        <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border-2 ${
-                          animal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                          animal.status === ReproductiveStatus.INSEMINATED ? 'bg-amber-50 text-amber-800 border-amber-200' : 
-                          animal.status === ReproductiveStatus.DRY ? 'bg-blue-50 text-blue-800 border-blue-200' :
-                          'bg-slate-50 text-slate-600 border-slate-300'
-                        }`}>
+                        <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border-2 ${animal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                          animal.status === ReproductiveStatus.INSEMINATED ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                            animal.status === ReproductiveStatus.DRY ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                              'bg-slate-50 text-slate-600 border-slate-300'
+                          }`}>
                           {animal.status}
                         </span>
-                        
+
                         {daysInDry !== null && (
                           <div className="flex items-center gap-1.5 mt-1 px-3 py-0.5 rounded-lg border bg-blue-50 border-blue-100">
                             <Wind size={12} className="text-blue-600" />
@@ -334,9 +386,9 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                     </td>
                     <td className="p-4 no-print text-center">
                       <div className="flex gap-2 justify-center">
-                        <button onClick={() => setViewHistoryAnimal(animal)} className="p-2.5 hover:bg-slate-200 text-slate-500 rounded-xl border border-slate-200 transition-all" title="History"><History size={18}/></button>
-                        <button onClick={() => { setEditTarget(animal); setIsModalOpen(true); }} className="p-2.5 hover:bg-indigo-50 text-indigo-600 rounded-xl border border-slate-200 transition-all" title="Edit"><Edit2 size={18}/></button>
-                        <button onClick={() => handleDelete(animal.id)} className="p-2.5 hover:bg-red-50 text-red-600 rounded-xl border border-slate-200 transition-all" title="Delete"><Trash2 size={18}/></button>
+                        <button onClick={() => setViewHistoryAnimal(animal)} className="p-2.5 hover:bg-slate-200 text-slate-500 rounded-xl border border-slate-200 transition-all" title="History"><History size={18} /></button>
+                        <button onClick={() => { setEditTarget(animal); setIsModalOpen(true); }} className="p-2.5 hover:bg-indigo-50 text-indigo-600 rounded-xl border border-slate-200 transition-all" title="Edit"><Edit2 size={18} /></button>
+                        <button onClick={() => handleDelete(animal.id)} className="p-2.5 hover:bg-red-50 text-red-600 rounded-xl border border-slate-200 transition-all" title="Delete"><Trash2 size={18} /></button>
                       </div>
                     </td>
                   </tr>
@@ -362,7 +414,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               </div>
               <button onClick={() => setViewHistoryAnimal(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-400"><X size={32} /></button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-12 space-y-12 bg-white">
               <div className="relative border-l-4 border-slate-100 pl-10 space-y-12">
                 {viewHistoryAnimal.history?.map(event => (
@@ -382,7 +434,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                 )) || <p className="italic text-slate-400 py-10 text-center">No record logs found.</p>}
               </div>
             </div>
-            
+
             <div className="p-10 border-t bg-slate-50 flex justify-end no-print">
               <button onClick={() => setViewHistoryAnimal(null)} className="bg-slate-900 text-white px-12 py-4 rounded-[1.5rem] font-black text-sm uppercase tracking-widest shadow-xl">Close Ledger</button>
             </div>
@@ -404,7 +456,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Actual Calving Date</label>
-                    <input 
+                    <input
                       type="date" required
                       className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl font-bold"
                       value={calvingDate} onChange={(e) => setCalvingDate(e.target.value)}
@@ -412,8 +464,8 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calf Tag ID</label>
-                    <input 
-                      required type="text" placeholder="e.g., C-101" 
+                    <input
+                      required type="text" placeholder="e.g., C-101"
                       className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl font-black text-slate-900 text-2xl focus:border-blue-600"
                       value={calfTag} onChange={(e) => setCalfTag(e.target.value)}
                     />
@@ -427,7 +479,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
 
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calving Description / Remarks</label>
-                  <textarea 
+                  <textarea
                     rows={3}
                     className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl font-bold"
                     placeholder="Enter details about the calving process..."
@@ -457,6 +509,7 @@ const SummaryItem = ({ label, value }: any) => (
 const QuickActionBtn = ({ onClick, icon, label, color }: any) => {
   const styles: any = {
     blue: 'bg-blue-600 text-white hover:bg-blue-700 border-blue-400',
+    amber: 'bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300',
     slate: 'bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-300'
   };
   return (
