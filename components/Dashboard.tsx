@@ -102,6 +102,18 @@ const Dashboard: React.FC<DashboardProps> = ({
     return daysGestation !== null && daysGestation >= 225;
   });
 
+  const animalsReadyForInsemination = animals.filter(a => {
+    // Check if animal is eligible for heat (Newly Calved or Open)
+    if (a.status !== ReproductiveStatus.NEWLY_CALVED && a.status !== ReproductiveStatus.OPEN) return false;
+    // Must have a calving date or be in Open status (which implies previous calving or failed insemination)
+    // However, the rule is strictly "45 days after entry" which usually implies calving date for existing cows.
+    if (!a.calvingDate) return false;
+
+    const days = helpers.getDaysSinceCalving(a.calvingDate);
+    // Alert if 45 days or more have passed
+    return days !== null && days >= 45;
+  });
+
   const searchedAnimal = React.useMemo(() => {
     if (searchQuery.length < 1) return null;
     return allAnimals.find(a => a.tagNumber.toLowerCase() === searchQuery.toLowerCase());
@@ -208,7 +220,8 @@ const Dashboard: React.FC<DashboardProps> = ({
       date: calvingDate,
       details: `Official Calving Recorded: Produced ${calfGender === 'male' ? 'Male Calf' : 'Female Calf'} (Tag: ${calfTag})`,
       remarks: calvingDescription,
-      calfId: newCalf.id
+      calfId: newCalf.id,
+      semen: pendingCalvingAnimal.semenName // Store the semen name used for this pregnancy
     });
 
     onUpdateBatch([newCalf, updatedMother]);
@@ -438,6 +451,24 @@ const Dashboard: React.FC<DashboardProps> = ({
                 />
               ))}
             </AlertGroup>
+
+            <AlertGroup
+              title="Ready for Heat/AI"
+              subTitle="انسمینیشن کے لیے تیار"
+              count={animalsReadyForInsemination.length}
+              color="emerald"
+              icon={<Sparkles size={20} />}
+            >
+              {animalsReadyForInsemination.map(a => (
+                <AlertItem
+                  key={a.id}
+                  animal={a}
+                  color="emerald"
+                  info={(helpers.getDaysSinceCalving(a.calvingDate!) || 0) + " Days since Calving"}
+                  onClick={() => onUpdateAnimal(a)} // Just view/edit for now, or maybe add specific action later
+                />
+              ))}
+            </AlertGroup>
           </div>
         </div>
       )}
@@ -586,10 +617,34 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="bg-slate-50 p-8 rounded-[2rem] border-2 border-slate-100">
                       <div className="flex justify-between items-center mb-4">
                         <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{helpers.formatDate(event.date)}</span>
-                        <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-black uppercase">{event.type}</span>
+                        <div className="flex gap-2">
+                          {event.result && (
+                            <span className={`px-3 py-1 rounded text-[10px] font-black uppercase ${event.result === 'Positive' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                              {event.result}
+                            </span>
+                          )}
+                          <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-black uppercase">{event.type}</span>
+                        </div>
                       </div>
-                      <p className="font-black text-slate-800 text-xl leading-snug">{event.details}</p>
-                      {event.remarks && <p className="text-sm text-slate-500 mt-4 italic">{event.remarks}</p>}
+                      <p className="font-black text-slate-800 text-xl leading-snug mb-2">{event.details}</p>
+
+                      {/* Detailed History Fields */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        {event.semen && (
+                          <div className="flex items-center gap-2 text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg max-w-fit">
+                            <Activity size={14} />
+                            <span className="font-bold">Semen: {event.semen}</span>
+                          </div>
+                        )}
+                        {event.calfId && (
+                          <div className="flex items-center gap-2 text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg max-w-fit">
+                            <Baby size={14} />
+                            <span className="font-bold">Calf: {animals.find(a => a.id === event.calfId)?.tagNumber || 'Unknown'}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {event.remarks && <p className="text-sm text-slate-500 mt-4 italic border-t border-slate-200 pt-3">"{event.remarks}"</p>}
                     </div>
                   </div>
                 )) || <p className="italic text-slate-400 py-10 text-center">No record logs found.</p>}
