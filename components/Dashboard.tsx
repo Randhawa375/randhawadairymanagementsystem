@@ -629,17 +629,32 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <p className="font-black text-slate-800 text-xl leading-snug mb-2">{event.details}</p>
 
                       {/* Detailed History Fields */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mt-3">
                         {event.semen && (
-                          <div className="flex items-center gap-2 text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg max-w-fit">
-                            <Activity size={14} />
-                            <span className="font-bold">Semen: {event.semen}</span>
+                          <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200">
+                            <div className="p-1 bg-white rounded-lg shadow-sm"><Activity size={14} className="text-indigo-600" /></div>
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Semen Used</span>
+                              <span className="font-extrabold text-sm leading-none mt-1">{event.semen}</span>
+                            </div>
                           </div>
                         )}
                         {event.calfId && (
-                          <div className="flex items-center gap-2 text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg max-w-fit">
-                            <Baby size={14} />
-                            <span className="font-bold">Calf: {animals.find(a => a.id === event.calfId)?.tagNumber || 'Unknown'}</span>
+                          <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200">
+                            <div className="p-1 bg-white rounded-lg shadow-sm"><Baby size={14} className="text-rose-600" /></div>
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Calf Born</span>
+                              <span className="font-extrabold text-sm leading-none mt-1">Tag: {animals.find(a => a.id === event.calfId)?.tagNumber || 'Unknown'}</span>
+                            </div>
+                          </div>
+                        )}
+                        {event.medications && (
+                          <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200 col-span-full">
+                            <div className="p-1 bg-white rounded-lg shadow-sm"><div className="w-3.5 h-3.5 flex items-center justify-center font-black text-[8px] border border-slate-400 rounded-sm">Rx</div></div>
+                            <div className="flex flex-col w-full">
+                              <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Medications / Treatment</span>
+                              <span className="font-bold text-xs leading-none mt-1">{event.medications}</span>
+                            </div>
                           </div>
                         )}
                       </div>

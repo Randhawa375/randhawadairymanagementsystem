@@ -72,42 +72,82 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       const isMedsChanged = data.medications && data.medications !== editTarget.medications;
       const isInsemDataChanged = (data.inseminationDate !== editTarget.inseminationDate) || (data.semenName !== editTarget.semenName);
 
-      if (isStatusChanged) {
-        updatedAnimal = addHistoryEvent(updatedAnimal, {
-          type: 'GENERAL',
-          date: new Date().toISOString(),
-          details: `Status manually changed to: ${data.status}`,
-          remarks: data.remarks
-        });
-      }
+      // --- DETAILED HISTORY LOGIC ---
 
-      // Specific History Logic
-      if (data.status === ReproductiveStatus.INSEMINATED && (isStatusChanged || isInsemDataChanged)) {
+      // 1. Status Change (Major Event)
+      if (isStatusChanged) {
+        if (data.status === ReproductiveStatus.INSEMINATED) {
+          updatedAnimal = addHistoryEvent(updatedAnimal, {
+            type: 'INSEMINATION',
+            date: data.inseminationDate || new Date().toISOString(),
+            details: `Inseminated with ${data.semenName}`,
+            semen: data.semenName,
+            remarks: data.remarks
+          });
+        } else if (data.status === ReproductiveStatus.PREGNANT) {
+          updatedAnimal = addHistoryEvent(updatedAnimal, {
+            type: 'PREGNANCY_CHECK',
+            date: new Date().toISOString(),
+            details: `Confirmed Pregnant. Expected Calving: ${formatDate(data.expectedCalvingDate || '')}`,
+            result: 'Positive',
+            semen: updatedAnimal.semenName, // Capture semen used
+            remarks: data.remarks
+          });
+        } else if (data.status === ReproductiveStatus.OPEN) {
+          updatedAnimal = addHistoryEvent(updatedAnimal, {
+            type: 'PREGNANCY_CHECK',
+            date: new Date().toISOString(),
+            details: `Marked OPEN (Empty).`,
+            result: 'Negative',
+            remarks: data.remarks
+          });
+        } else {
+          updatedAnimal = addHistoryEvent(updatedAnimal, {
+            type: 'GENERAL',
+            date: new Date().toISOString(),
+            details: `Status changed to: ${data.status}`,
+            remarks: data.remarks
+          });
+        }
+      }
+      // 2. Insemination Data Update (without status change, e.g. correction)
+      else if (isInsemDataChanged && data.status === ReproductiveStatus.INSEMINATED) {
         updatedAnimal = addHistoryEvent(updatedAnimal, {
           type: 'INSEMINATION',
           date: data.inseminationDate || new Date().toISOString(),
-          details: `Inseminated with ${data.semenName}`,
+          details: `Insemination record updated. Semen: ${data.semenName}`,
           semen: data.semenName,
-          remarks: data.remarks
-        });
-      } else if (data.status === ReproductiveStatus.PREGNANT && isStatusChanged) {
-        updatedAnimal = addHistoryEvent(updatedAnimal, {
-          type: 'PREGNANCY_CHECK',
-          date: new Date().toISOString(),
-          details: `Confirmed Pregnant. Expected Calving: ${formatDate(data.expectedCalvingDate || '')}`,
-          remarks: data.remarks
+          remarks: 'Record Correction'
         });
       }
 
+      // 3. Medication Update
       if (isMedsChanged) {
         updatedAnimal = addHistoryEvent(updatedAnimal, {
           type: 'MEDICATION',
           date: new Date().toISOString(),
-          details: `Medication / Treatment Updated`,
+          details: `Medication Added/Updated`,
           medications: data.medications,
           remarks: data.remarks
         });
       }
+
+      // 4. General Field Updates (Category, Farm, etc.) - Detect other changes
+      if (!isStatusChanged && !isMedsChanged && !isInsemDataChanged) {
+        const changes: string[] = [];
+        if (data.category !== editTarget.category) changes.push(`Category: ${editTarget.category} -> ${data.category}`);
+        if (data.farm !== editTarget.farm) changes.push(`Location: ${editTarget.farm} -> ${data.farm}`);
+        if (data.remarks !== editTarget.remarks && data.remarks) changes.push(`Note Added`);
+
+        if (changes.length > 0) {
+          updatedAnimal = addHistoryEvent(updatedAnimal, {
+            type: 'GENERAL',
+            date: new Date().toISOString(),
+            details: `Profile Updated: ${changes.join(', ')}`,
+          });
+        }
+      }
+
       onSave(updatedAnimal);
     } else {
       const newAnimal: Animal = {
