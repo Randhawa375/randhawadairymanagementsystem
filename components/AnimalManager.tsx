@@ -41,19 +41,26 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
 
   const [calfGender, setCalfGender] = useState<'male' | 'female'>('female');
   const [calfTag, setCalfTag] = useState('');
-  const [calvingDate, setCalvingDate] = useState(new Date().toISOString().split('T')[0]);
-  const [calvingDescription, setCalvingDescription] = useState('');
-  const [calfImage, setCalfImage] = useState<string | undefined>(undefined);
+  const [calfDescription, setCalvingDescription] = useState('');
+  const [calfImages, setCalfImages] = useState<string[]>([]);
 
   const handleCalfImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCalfImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (reader.result) {
+            setCalfImages(prev => [...prev, reader.result as string]);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     }
+  };
+
+  const removeCalfImage = (index: number) => {
+    setCalfImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleDelete = async (id: string) => {
@@ -216,7 +223,8 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       status: ReproductiveStatus.OPEN,
       farm: calvingMother.farm,
       motherId: calvingMother.id,
-      image: calfImage,
+      image: calfImages[0], // Primary image
+      images: calfImages,   // Gallery
       history: [{
         id: generateId(),
         type: 'GENERAL',
@@ -254,7 +262,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
     setIsCalvingModalOpen(false);
     setCalfTag('');
     setCalvingDescription('');
-    setCalfImage(undefined);
+    setCalfImages([]);
     setCalvingDate(new Date().toISOString().split('T')[0]);
   };
 
@@ -626,16 +634,23 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calf Photo (بچھڑے کی تصویر)</label>
-                  <label className="cursor-pointer bg-slate-100 border-2 border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50 px-4 py-3 rounded-2xl flex items-center justify-between gap-2 transition-all">
-                    <div className="flex items-center gap-3">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calf Photos (بچھڑے کی تصاویر)</label>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="cursor-pointer bg-slate-100 border-2 border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50 w-24 h-24 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all">
                       <Camera size={20} className="text-slate-400" />
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Upload</span>
-                      <input type="file" accept="image/*" onChange={handleCalfImageUpload} className="hidden" />
-                    </div>
-                    {calfImage && <img src={calfImage} className="w-12 h-12 rounded-lg object-cover border-2 border-white shadow-sm" />}
-                  </label>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Add</span>
+                      <input type="file" accept="image/*" multiple onChange={handleCalfImageUpload} className="hidden" />
+                    </label>
+                    {calfImages.map((img, idx) => (
+                      <div key={idx} className="relative group w-24 h-24">
+                        <img src={img} className="w-full h-full rounded-2xl object-cover border-2 border-slate-200 shadow-sm" />
+                        <button type="button" onClick={() => removeCalfImage(idx)} className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-md transform hover:scale-110">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex bg-slate-50 p-2 rounded-[1.5rem] border-2 border-slate-100">
