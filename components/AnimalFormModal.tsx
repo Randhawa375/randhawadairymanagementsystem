@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Milk, MapPin } from 'lucide-react';
+import { X, Save, Milk, MapPin, Camera } from 'lucide-react';
 import { Animal, AnimalCategory, ReproductiveStatus, FarmLocation } from '../types';
 import { calculateCalvingDate } from '../utils/helpers';
 
@@ -13,7 +13,7 @@ interface AnimalFormModalProps {
   mothersList: Animal[];
 }
 
-const AnimalFormModal: React.FC<AnimalFormModalProps> = ({ 
+const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
   isOpen, onClose, onSave, initialData, activeFarmSelection, mothersList
 }) => {
   const [formData, setFormData] = useState<Partial<Animal>>({
@@ -34,10 +34,10 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
       const initialCat = activeFarmSelection === FarmLocation.MILKING_FARM ? AnimalCategory.MILKING : AnimalCategory.CATTLE;
       // Set a default status based on the category
       // Fix: Remove redundant CALF_MALE check since initialCat can only be MILKING or CATTLE here
-      const initialStatus = (initialCat === AnimalCategory.CATTLE) 
-        ? ReproductiveStatus.OTHER 
+      const initialStatus = (initialCat === AnimalCategory.CATTLE)
+        ? ReproductiveStatus.OTHER
         : ReproductiveStatus.OPEN;
-        
+
       setFormData(prev => ({ ...prev, farm: activeFarmSelection, category: initialCat, status: initialStatus }));
     }
   }, [initialData, activeFarmSelection]);
@@ -50,6 +50,17 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
       if (calvingDate) finalData.expectedCalvingDate = calvingDate.toISOString();
     }
     onSave(finalData);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(p => ({ ...p, image: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const isMaleCategory = formData.category === AnimalCategory.CALF_MALE || formData.category === AnimalCategory.CATTLE;
@@ -75,7 +86,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
   const handleCategoryChange = (cat: AnimalCategory) => {
     const isNowMale = cat === AnimalCategory.CALF_MALE || cat === AnimalCategory.CATTLE;
     let newStatus = formData.status;
-    
+
     if (isNowMale) {
       // If was female status, switch to male
       if (!maleStatuses.find(m => m.s === formData.status)) {
@@ -87,8 +98,8 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
         newStatus = ReproductiveStatus.OPEN;
       }
     }
-    
-    setFormData(p => ({...p, category: cat, status: newStatus as ReproductiveStatus}));
+
+    setFormData(p => ({ ...p, category: cat, status: newStatus as ReproductiveStatus }));
   };
 
   if (!isOpen) return null;
@@ -109,12 +120,33 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
         <form onSubmit={handleSubmit} className="p-10 space-y-8 overflow-y-auto max-h-[80vh] bg-white">
           <div className="space-y-2">
             <label>Tag Number (ٹیگ نمبر)</label>
-            <input 
+            <input
               required autoFocus value={formData.tagNumber}
-              onChange={(e) => setFormData(p => ({...p, tagNumber: e.target.value}))}
+              onChange={(e) => setFormData(p => ({ ...p, tagNumber: e.target.value }))}
               className="w-full px-6 py-5 border-2 rounded-2xl text-4xl font-black text-slate-900 focus:border-indigo-600 outline-none shadow-sm"
               placeholder="000"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-2">
+              <Camera size={18} className="text-slate-400" /> Photo (تصویر)
+            </label>
+            <div className="flex items-center gap-6">
+              <label className="cursor-pointer bg-slate-100 border-2 border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50 px-6 py-4 rounded-2xl flex flex-col items-center gap-2 transition-all">
+                <Camera size={24} className="text-slate-400" />
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Upload</span>
+                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+              </label>
+              {formData.image ? (
+                <div className="relative group">
+                  <img src={formData.image} alt="Preview" className="w-24 h-24 rounded-2xl object-cover border-2 border-indigo-200 shadow-md" />
+                  <button type="button" onClick={() => setFormData(p => ({ ...p, image: undefined }))} className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={14} /></button>
+                </div>
+              ) : (
+                <div className="w-24 h-24 rounded-2xl bg-slate-50 border-2 border-slate-100 flex items-center justify-center text-slate-300 text-xs font-bold uppercase">No Image</div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -124,12 +156,12 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
                 <MapPin size={20} className="text-indigo-600" /> {formData.farm}
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <label>Category (جانور کی قسم)</label>
-              <select 
+              <select
                 className="w-full px-5 py-4 border-2 rounded-2xl font-black text-slate-900 text-lg focus:border-indigo-600"
-                value={formData.category} 
+                value={formData.category}
                 onChange={(e) => handleCategoryChange(e.target.value as AnimalCategory)}
               >
                 <option value={AnimalCategory.MILKING}>Milking (دودھ والی)</option>
@@ -146,7 +178,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
             <div className="grid grid-cols-2 gap-3">
               {activeStatusOptions.map(item => (
                 <button
-                  key={item.s} type="button" onClick={() => setFormData(p => ({...p, status: item.s}))}
+                  key={item.s} type="button" onClick={() => setFormData(p => ({ ...p, status: item.s }))}
                   className={`p-4 rounded-2xl border-2 font-black text-xs transition-all flex flex-col items-center ${formData.status === item.s ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-900 hover:border-indigo-400'}`}
                 >
                   <span>{item.s}</span>
@@ -160,16 +192,16 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
             <div className="p-8 bg-indigo-50/50 rounded-3xl border-2 border-indigo-100 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2 duration-300">
               <div className="space-y-2">
                 <label className="text-indigo-900">Insemination Date (ٹیکہ کی تاریخ)</label>
-                <input 
+                <input
                   type="date" className="w-full px-5 py-3.5 border-2 rounded-xl font-black text-slate-900"
-                  value={formData.inseminationDate} onChange={(e) => setFormData(p => ({...p, inseminationDate: e.target.value}))}
+                  value={formData.inseminationDate} onChange={(e) => setFormData(p => ({ ...p, inseminationDate: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-indigo-900">Semen Used (ٹیکہ کا نام)</label>
-                <input 
+                <input
                   className="w-full px-5 py-3.5 border-2 rounded-xl font-black text-slate-900"
-                  value={formData.semenName} onChange={(e) => setFormData(p => ({...p, semenName: e.target.value}))}
+                  value={formData.semenName} onChange={(e) => setFormData(p => ({ ...p, semenName: e.target.value }))}
                   placeholder="e.g. Bull #99"
                 />
               </div>
@@ -178,11 +210,11 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
 
           <div className="space-y-2">
             <label>Notes & Medications (دیگر معلومات / ادویات)</label>
-            <textarea 
+            <textarea
               rows={3}
               className="w-full px-6 py-5 border-2 rounded-2xl font-bold text-slate-900 focus:border-indigo-600 outline-none"
               value={formData.remarks}
-              onChange={(e) => setFormData(p => ({...p, remarks: e.target.value}))}
+              onChange={(e) => setFormData(p => ({ ...p, remarks: e.target.value }))}
               placeholder="Details here..."
             />
           </div>

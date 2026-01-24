@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Edit2, Trash2, Baby, History, X, Save, ClipboardList, Timer, Droplets, Wind, ArrowRightLeft, Activity } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Baby, History, X, Save, ClipboardList, Timer, Droplets, Wind, ArrowRightLeft, Activity, Camera } from 'lucide-react';
 import { Animal, AnimalCategory, ReproductiveStatus, FarmLocation, HistoryEvent } from '../types';
 import AnimalFormModal from './AnimalFormModal';
 import {
@@ -43,6 +43,18 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
   const [calfTag, setCalfTag] = useState('');
   const [calvingDate, setCalvingDate] = useState(new Date().toISOString().split('T')[0]);
   const [calvingDescription, setCalvingDescription] = useState('');
+  const [calfImage, setCalfImage] = useState<string | undefined>(undefined);
+
+  const handleCalfImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCalfImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this record? This will remove it from the cloud database permanently.')) {
@@ -204,6 +216,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       status: ReproductiveStatus.OPEN,
       farm: calvingMother.farm,
       motherId: calvingMother.id,
+      image: calfImage,
       history: [{
         id: generateId(),
         type: 'GENERAL',
@@ -241,6 +254,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
     setIsCalvingModalOpen(false);
     setCalfTag('');
     setCalvingDescription('');
+    setCalfImage(undefined);
     setCalvingDate(new Date().toISOString().split('T')[0]);
   };
 
@@ -278,12 +292,17 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       {searchedAnimal && (
         <div className="bg-white rounded-3xl p-8 border-4 border-slate-900 shadow-2xl animate-in slide-in-from-top-4 duration-300 relative overflow-hidden">
           <div className="flex justify-between items-start border-b-2 border-slate-100 pb-6 mb-6">
-            <div>
-              <p className="text-xs font-black text-slate-500 uppercase mb-1">Tag Number</p>
-              <h2 className="text-5xl font-black text-slate-900 tracking-tighter">{searchedAnimal.tagNumber}</h2>
-              <div className="flex gap-2 mt-2">
-                <span className="bg-slate-100 px-3 py-1 rounded-md text-[10px] font-black text-slate-600 uppercase tracking-widest">{searchedAnimal.category}</span>
-                <span className="bg-slate-100 px-3 py-1 rounded-md text-[10px] font-black text-slate-600 uppercase tracking-widest">{searchedAnimal.farm}</span>
+            <div className="flex items-center gap-6">
+              {searchedAnimal.image && (
+                <img src={searchedAnimal.image} className="w-32 h-32 rounded-2xl object-cover border-4 border-slate-100 shadow-lg" alt="Animal" />
+              )}
+              <div>
+                <p className="text-xs font-black text-slate-500 uppercase mb-1">Tag Number</p>
+                <h2 className="text-5xl font-black text-slate-900 tracking-tighter">{searchedAnimal.tagNumber}</h2>
+                <div className="flex gap-2 mt-2">
+                  <span className="bg-slate-100 px-3 py-1 rounded-md text-[10px] font-black text-slate-600 uppercase tracking-widest">{searchedAnimal.category}</span>
+                  <span className="bg-slate-100 px-3 py-1 rounded-md text-[10px] font-black text-slate-600 uppercase tracking-widest">{searchedAnimal.farm}</span>
+                </div>
               </div>
             </div>
             <div className="flex flex-col items-end gap-2">
@@ -605,6 +624,18 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                       value={calfTag} onChange={(e) => setCalfTag(e.target.value)}
                     />
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calf Photo (بچھڑے کی تصویر)</label>
+                  <label className="cursor-pointer bg-slate-100 border-2 border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50 px-4 py-3 rounded-2xl flex items-center justify-between gap-2 transition-all">
+                    <div className="flex items-center gap-3">
+                      <Camera size={20} className="text-slate-400" />
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Upload</span>
+                      <input type="file" accept="image/*" onChange={handleCalfImageUpload} className="hidden" />
+                    </div>
+                    {calfImage && <img src={calfImage} className="w-12 h-12 rounded-lg object-cover border-2 border-white shadow-sm" />}
+                  </label>
                 </div>
 
                 <div className="flex bg-slate-50 p-2 rounded-[1.5rem] border-2 border-slate-100">

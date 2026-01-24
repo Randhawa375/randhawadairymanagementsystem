@@ -601,7 +601,11 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in zoom-in duration-300">
             <div className="p-10 border-b-2 border-slate-100 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-5">
-                <div className="bg-indigo-900 text-white p-4 rounded-3xl shadow-xl"><History size={28} /></div>
+                {viewHistoryAnimal.image ? (
+                  <img src={viewHistoryAnimal.image} className="w-24 h-24 rounded-3xl object-cover shadow-xl border-4 border-white" alt="Profile" />
+                ) : (
+                  <div className="bg-indigo-900 text-white p-4 rounded-3xl shadow-xl"><History size={28} /></div>
+                )}
                 <div>
                   <h3 className="text-3xl font-black text-slate-900 tracking-tight">Record Ledger</h3>
                   <div className="flex items-center gap-3 mt-2">

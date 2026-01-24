@@ -61,5 +61,6 @@ export interface Animal {
   lastUpdated: string;
   motherId?: string;
   calvesIds?: string[];
+  image?: string; // Base64 or URL
   history: HistoryEvent[];
 }
