@@ -461,7 +461,13 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                 </div>
                 <div>
                   <h3 className="text-3xl font-black text-slate-900 tracking-tight">Record Ledger</h3>
-                  <p className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-1">Tag: #{viewHistoryAnimal.tagNumber}</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="text-5xl font-black text-indigo-600 tracking-tighter">#{viewHistoryAnimal.tagNumber}</span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border ${viewHistoryAnimal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : viewHistoryAnimal.status === ReproductiveStatus.INSEMINATED ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>{viewHistoryAnimal.status}</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{viewHistoryAnimal.category} | {viewHistoryAnimal.farm}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <button onClick={() => setViewHistoryAnimal(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-400"><X size={32} /></button>
@@ -474,70 +480,85 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                     <div className="absolute top-0 -left-[50px] w-8 h-8 rounded-full bg-white border-4 border-slate-200 z-10 flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-indigo-600"></div>
                     </div>
-                    <div className="bg-slate-50 p-8 rounded-[2rem] border-2 border-slate-100">
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{formatDate(event.date)}</span>
-                        <div className="flex gap-2">
-                          {event.result && (
-                            <span className={`px-3 py-1 rounded text-[10px] font-black uppercase ${event.result === 'Positive' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                              {event.result}
-                            </span>
-                          )}
-                          <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-black uppercase">{event.type}</span>
-                        </div>
-                      </div>
-                      <p className="font-black text-slate-800 text-xl leading-snug mb-2">{event.details}</p>
+                    {/* Dynamic Style based on Event Type */}
+                    {(() => {
+                      const getEventStyle = (type: string, result?: string) => {
+                        if (type === 'CALVING') return 'bg-rose-50 border-rose-100';
+                        if (type === 'INSEMINATION') return 'bg-amber-50 border-amber-100';
+                        if (type === 'PREGNANCY_CHECK') return result === 'Positive' ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-200';
+                        if (type === 'FARM_SHIFT') return 'bg-blue-50 border-blue-100';
+                        return 'bg-slate-50 border-slate-200';
+                      };
 
-                      {/* Detailed History Fields - With Legacy Parsing Support */}
-                      {(() => {
-                        let semenName = event.semen;
-                        let calfTagInfo = event.calfId ? animals.find(a => a.id === event.calfId)?.tagNumber : null;
+                      const cardStyle = getEventStyle(event.type, event.result);
 
-                        // Legacy Parsing
-                        if (!semenName && event.details && event.details.includes('Inseminated with')) {
-                          const match = event.details.match(/Inseminated with (.*)/);
-                          if (match && match[1]) semenName = match[1];
-                        }
-                        if (!calfTagInfo && event.details && event.details.includes('Tag:')) {
-                          const match = event.details.match(/Tag: ([^)]+)/);
-                          if (match && match[1]) calfTagInfo = match[1];
-                        }
-
-                        return (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mt-3">
-                            {semenName && (
-                              <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200">
-                                <div className="p-1 bg-white rounded-lg shadow-sm"><Activity size={14} className="text-indigo-600" /></div>
-                                <div className="flex flex-col">
-                                  <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Semen Used</span>
-                                  <span className="font-extrabold text-sm leading-none mt-1">{semenName}</span>
-                                </div>
-                              </div>
-                            )}
-                            {calfTagInfo && (
-                              <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200">
-                                <div className="p-1 bg-white rounded-lg shadow-sm"><Baby size={14} className="text-rose-600" /></div>
-                                <div className="flex flex-col">
-                                  <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Calf Born</span>
-                                  <span className="font-extrabold text-sm leading-none mt-1">Tag: {calfTagInfo}</span>
-                                </div>
-                              </div>
-                            )}
-                            {event.medications && (
-                              <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200 col-span-full">
-                                <div className="p-1 bg-white rounded-lg shadow-sm"><div className="w-3.5 h-3.5 flex items-center justify-center font-black text-[8px] border border-slate-400 rounded-sm">Rx</div></div>
-                                <div className="flex flex-col w-full">
-                                  <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Medications / Treatment</span>
-                                  <span className="font-bold text-xs leading-none mt-1">{event.medications}</span>
-                                </div>
-                              </div>
-                            )}
+                      return (
+                        <div className={`p-8 rounded-[2rem] border-2 transition-all hover:shadow-lg ${cardStyle}`}>
+                          <div className="flex justify-between items-center mb-4">
+                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{formatDate(event.date)}</span>
+                            <div className="flex gap-2">
+                              {event.result && (
+                                <span className={`px-3 py-1 rounded text-[10px] font-black uppercase ${event.result === 'Positive' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                  {event.result}
+                                </span>
+                              )}
+                              <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-black uppercase">{event.type}</span>
+                            </div>
                           </div>
-                        );
-                      })()}
+                          <p className="font-black text-slate-800 text-xl leading-snug mb-2">{event.details}</p>
 
-                      {event.remarks && <p className="text-sm text-slate-500 mt-4 italic border-t border-slate-200 pt-3">"{event.remarks}"</p>}
-                    </div>
+                          {/* Detailed History Fields - With Legacy Parsing Support */}
+                          {(() => {
+                            let semenName = event.semen;
+                            let calfTagInfo = event.calfId ? animals.find(a => a.id === event.calfId)?.tagNumber : null;
+
+                            // Legacy Parsing
+                            if (!semenName && event.details && event.details.includes('Inseminated with')) {
+                              const match = event.details.match(/Inseminated with (.*)/);
+                              if (match && match[1]) semenName = match[1];
+                            }
+                            if (!calfTagInfo && event.details && event.details.includes('Tag:')) {
+                              const match = event.details.match(/Tag: ([^)]+)/);
+                              if (match && match[1]) calfTagInfo = match[1];
+                            }
+
+                            return (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mt-3">
+                                {semenName && (
+                                  <div className="flex items-center gap-3 bg-white/60 px-4 py-2 rounded-xl border border-slate-200/50">
+                                    <div className="p-1 bg-white rounded-lg shadow-sm"><Activity size={14} className="text-indigo-600" /></div>
+                                    <div className="flex flex-col">
+                                      <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Semen Used</span>
+                                      <span className="font-extrabold text-sm leading-none mt-1">{semenName}</span>
+                                    </div>
+                                  </div>
+                                )}
+                                {calfTagInfo && (
+                                  <div className="flex items-center gap-3 bg-white/60 px-4 py-2 rounded-xl border border-slate-200/50">
+                                    <div className="p-1 bg-white rounded-lg shadow-sm"><Baby size={14} className="text-rose-600" /></div>
+                                    <div className="flex flex-col">
+                                      <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Calf Born</span>
+                                      <span className="font-extrabold text-sm leading-none mt-1">Tag: {calfTagInfo}</span>
+                                    </div>
+                                  </div>
+                                )}
+                                {event.medications && (
+                                  <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200 col-span-full">
+                                    <div className="p-1 bg-white rounded-lg shadow-sm"><div className="w-3.5 h-3.5 flex items-center justify-center font-black text-[8px] border border-slate-400 rounded-sm">Rx</div></div>
+                                    <div className="flex flex-col w-full">
+                                      <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Medications / Treatment</span>
+                                      <span className="font-bold text-xs leading-none mt-1">{event.medications}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+
+                          {event.remarks && <p className="text-sm font-bold text-slate-500 mt-5 pt-3 border-t border-slate-200/50 italic">Note: "{event.remarks}"</p>}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )) || <p className="italic text-slate-400 py-10 text-center">No record logs found.</p>}
               </div>
