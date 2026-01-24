@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Edit2, Trash2, Baby, History, X, Save, ClipboardList, Timer, Droplets, Wind, ArrowRightLeft } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Baby, History, X, Save, ClipboardList, Timer, Droplets, Wind, ArrowRightLeft, Activity } from 'lucide-react';
 import { Animal, AnimalCategory, ReproductiveStatus, FarmLocation, HistoryEvent } from '../types';
 import AnimalFormModal from './AnimalFormModal';
 import {
@@ -477,10 +477,66 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                     <div className="bg-slate-50 p-8 rounded-[2rem] border-2 border-slate-100">
                       <div className="flex justify-between items-center mb-4">
                         <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{formatDate(event.date)}</span>
-                        <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-black uppercase">{event.type}</span>
+                        <div className="flex gap-2">
+                          {event.result && (
+                            <span className={`px-3 py-1 rounded text-[10px] font-black uppercase ${event.result === 'Positive' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                              {event.result}
+                            </span>
+                          )}
+                          <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-black uppercase">{event.type}</span>
+                        </div>
                       </div>
-                      <p className="font-black text-slate-800 text-xl leading-snug">{event.details}</p>
-                      {event.remarks && <p className="text-sm text-slate-500 mt-4 italic">{event.remarks}</p>}
+                      <p className="font-black text-slate-800 text-xl leading-snug mb-2">{event.details}</p>
+
+                      {/* Detailed History Fields - With Legacy Parsing Support */}
+                      {(() => {
+                        let semenName = event.semen;
+                        let calfTagInfo = event.calfId ? animals.find(a => a.id === event.calfId)?.tagNumber : null;
+
+                        // Legacy Parsing
+                        if (!semenName && event.details && event.details.includes('Inseminated with')) {
+                          const match = event.details.match(/Inseminated with (.*)/);
+                          if (match && match[1]) semenName = match[1];
+                        }
+                        if (!calfTagInfo && event.details && event.details.includes('Tag:')) {
+                          const match = event.details.match(/Tag: ([^)]+)/);
+                          if (match && match[1]) calfTagInfo = match[1];
+                        }
+
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mt-3">
+                            {semenName && (
+                              <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200">
+                                <div className="p-1 bg-white rounded-lg shadow-sm"><Activity size={14} className="text-indigo-600" /></div>
+                                <div className="flex flex-col">
+                                  <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Semen Used</span>
+                                  <span className="font-extrabold text-sm leading-none mt-1">{semenName}</span>
+                                </div>
+                              </div>
+                            )}
+                            {calfTagInfo && (
+                              <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200">
+                                <div className="p-1 bg-white rounded-lg shadow-sm"><Baby size={14} className="text-rose-600" /></div>
+                                <div className="flex flex-col">
+                                  <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Calf Born</span>
+                                  <span className="font-extrabold text-sm leading-none mt-1">Tag: {calfTagInfo}</span>
+                                </div>
+                              </div>
+                            )}
+                            {event.medications && (
+                              <div className="flex items-center gap-2 text-slate-700 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200 col-span-full">
+                                <div className="p-1 bg-white rounded-lg shadow-sm"><div className="w-3.5 h-3.5 flex items-center justify-center font-black text-[8px] border border-slate-400 rounded-sm">Rx</div></div>
+                                <div className="flex flex-col w-full">
+                                  <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Medications / Treatment</span>
+                                  <span className="font-bold text-xs leading-none mt-1">{event.medications}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {event.remarks && <p className="text-sm text-slate-500 mt-4 italic border-t border-slate-200 pt-3">"{event.remarks}"</p>}
                     </div>
                   </div>
                 )) || <p className="italic text-slate-400 py-10 text-center">No record logs found.</p>}
