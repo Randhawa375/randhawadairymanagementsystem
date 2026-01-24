@@ -337,20 +337,20 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans" dir="ltr">
       <header className="bg-white p-4 shadow-sm border-b border-slate-200">
         <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-indigo-600 p-2.5 rounded-2xl text-white shadow-lg">
-              <Milk size={28} />
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="bg-indigo-600 p-2.5 rounded-2xl text-white shadow-lg shrink-0">
+              <Milk size={24} className="md:w-7 md:h-7" />
             </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-tight">
-                Randhawa Dairy Animal Management System <br /><span className="text-sm font-bold opacity-60"> </span>
+            <div className="min-w-0">
+              <h1 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight leading-tight truncate">
+                Randhawa Dairy Animal Management
               </h1>
-              <div className="flex items-center gap-4 mt-1">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                 <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   <UserIcon size={12} className="text-indigo-600" />
-                  <span>Proprietor: {PROPRIETOR}</span>
+                  <span className="truncate">Proprietor: {PROPRIETOR}</span>
                 </div>
-                <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
+                <div className="hidden sm:block w-1 h-1 bg-slate-300 rounded-full"></div>
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-1.5 text-[10px] font-black text-rose-600 uppercase tracking-widest hover:text-rose-800 transition-colors"
@@ -362,24 +362,24 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex gap-4 items-center">
-            <div className="flex bg-slate-100 rounded-2xl p-1 border border-slate-200">
+          <div className="flex flex-wrap justify-center gap-3 w-full md:w-auto">
+            <div className="flex bg-slate-100 rounded-2xl p-1 border border-slate-200 overflow-x-auto max-w-full">
               <FarmToggle active={activeFarm === 'all'} onClick={() => { setActiveFarm('all'); setSearchQuery(''); }} label="Overview" />
-              <FarmToggle active={activeFarm === FarmLocation.MILKING_FARM} onClick={() => { setActiveFarm(FarmLocation.MILKING_FARM); setSearchQuery(''); }} label="Milking Farm" />
-              <FarmToggle active={activeFarm === FarmLocation.HEIFER_FARM} onClick={() => { setActiveFarm(FarmLocation.HEIFER_FARM); setSearchQuery(''); }} label="Cattle Farm" />
+              <FarmToggle active={activeFarm === FarmLocation.MILKING_FARM} onClick={() => { setActiveFarm(FarmLocation.MILKING_FARM); setSearchQuery(''); }} label="Milking" />
+              <FarmToggle active={activeFarm === FarmLocation.HEIFER_FARM} onClick={() => { setActiveFarm(FarmLocation.HEIFER_FARM); setSearchQuery(''); }} label="Cattle" />
             </div>
             <button
               onClick={() => handleDownloadPDF(animals, 'Full Inventory Summary')}
-              className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 hover:bg-black transition-all shadow-md"
+              className="bg-slate-900 text-white px-4 md:px-6 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 hover:bg-black transition-all shadow-md whitespace-nowrap"
             >
-              <Download size={18} /> Summary Report
+              <Download size={16} /> <span className="hidden sm:inline">Summary Report</span><span className="sm:hidden">Report</span>
             </button>
           </div>
         </div>
       </header>
 
-      <nav className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="container mx-auto flex gap-1 px-4">
+      <nav className="bg-white border-b sticky top-0 z-10 shadow-sm overflow-x-auto no-scrollbar">
+        <div className="container mx-auto flex gap-1 px-4 min-w-max">
           <NavItem active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={18} />} label="Dashboard" />
           {activeFarm !== 'all' ? (
             <NavItem active={view === 'list'} onClick={() => setView('list')} icon={<UserIcon size={18} />} label="Records List" />

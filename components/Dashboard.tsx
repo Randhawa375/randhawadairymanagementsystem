@@ -250,9 +250,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-6">
       {/* Header & Search */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 gap-4 shadow-sm">
-        <div>
-          <h2 className="text-3xl font-black text-slate-900 leading-none uppercase tracking-tight">{farmName}</h2>
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 md:p-6 rounded-3xl border border-slate-200 gap-4 shadow-sm">
+        <div className="text-center md:text-left">
+          <h2 className="text-2xl md:text-3xl font-black text-slate-900 leading-none uppercase tracking-tight">{farmName}</h2>
           <p className="text-indigo-600 font-bold uppercase tracking-widest text-[10px] mt-2">Live Farm Intelligence (فارم کی تازہ ترین صورتحال)</p>
         </div>
         <div className="relative w-full md:w-96">
@@ -273,38 +273,38 @@ const Dashboard: React.FC<DashboardProps> = ({
           <ChevronRight size={16} className="text-indigo-600" />
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Breeding & Management Status (جانوروں کی حالت)</h3>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-          <StatCard label="Total Animals" subLabel="(کل جانور)" value={total} icon={<Users size={24} />} color="indigo" />
-          <StatCard label="Newly Calved" subLabel="(تازہ سوئی)" value={newlyCalvedCount} icon={<Sparkles size={24} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.NEWLY_CALVED)} />
-          <StatCard label="Pregnant" subLabel="(گابھن)" value={pregnantCount} icon={<ShieldCheck size={24} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.PREGNANT)} />
-          <StatCard label="Inseminated" subLabel="(ٹیکہ شدہ)" value={inseminatedCount} icon={<Activity size={24} />} color="amber" onClick={() => onNavigateToReport(ReproductiveStatus.INSEMINATED)} />
-          <StatCard label="Dry" subLabel="(خشک جانور)" value={dryCount} icon={<Wind size={24} />} color="blue" onClick={() => onNavigateToReport(ReproductiveStatus.DRY)} />
-          <StatCard label="Open" subLabel="(خالی جانور)" value={openCount} icon={<RotateCcw size={24} />} color="rose" onClick={() => onNavigateToReport(ReproductiveStatus.OPEN)} />
-          <StatCard label="Child Status" subLabel="(بچہ حالت)" value={childStatusCount} icon={<Baby size={24} />} color="rose" onClick={() => onNavigateToReport(ReproductiveStatus.CHILD)} />
+        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4">
+          <StatCard label="Total Animals" subLabel="(کل جانور)" value={total} icon={<Users size={20} />} color="indigo" />
+          <StatCard label="Newly Calved" subLabel="(تازہ سوئی)" value={newlyCalvedCount} icon={<Sparkles size={20} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.NEWLY_CALVED)} />
+          <StatCard label="Pregnant" subLabel="(گابھن)" value={pregnantCount} icon={<ShieldCheck size={20} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.PREGNANT)} />
+          <StatCard label="Inseminated" subLabel="(ٹیکہ شدہ)" value={inseminatedCount} icon={<Activity size={20} />} color="amber" onClick={() => onNavigateToReport(ReproductiveStatus.INSEMINATED)} />
+          <StatCard label="Dry" subLabel="(خشک جانور)" value={dryCount} icon={<Wind size={20} />} color="blue" onClick={() => onNavigateToReport(ReproductiveStatus.DRY)} />
+          <StatCard label="Open" subLabel="(خالی جانور)" value={openCount} icon={<RotateCcw size={20} />} color="rose" onClick={() => onNavigateToReport(ReproductiveStatus.OPEN)} />
+          <StatCard label="Child Status" subLabel="(بچہ حالت)" value={childStatusCount} icon={<Baby size={20} />} color="rose" onClick={() => onNavigateToReport(ReproductiveStatus.CHILD)} />
         </div>
 
         <div className="flex items-center gap-2 px-2 pt-4">
           <ChevronRight size={16} className="text-indigo-600" />
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Herd Inventory Categories (جانوروں کی اقسام)</h3>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Heifers" subLabel="(بچھڑیاں)" value={totalHeiferCount} icon={<Activity size={24} />} color="indigo" />
-          <StatCard label="Cattle" subLabel="(بیل/گائے)" value={cattleCount} icon={<Beef size={24} />} color="blue" />
-          <StatCard label="Female Calf" subLabel="(بچھیا)" value={calfCount} icon={<Baby size={24} />} color="rose" />
-          <StatCard label="Male Calf" subLabel="(بچھڑا)" value={maleCalfCount} icon={<Baby size={24} />} color="slate" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <StatCard label="Heifers" subLabel="(بچھڑیاں)" value={totalHeiferCount} icon={<Activity size={20} />} color="indigo" />
+          <StatCard label="Cattle" subLabel="(بیل/گائے)" value={cattleCount} icon={<Beef size={20} />} color="blue" />
+          <StatCard label="Female Calf" subLabel="(بچھیا)" value={calfCount} icon={<Baby size={20} />} color="rose" />
+          <StatCard label="Male Calf" subLabel="(بچھڑا)" value={maleCalfCount} icon={<Baby size={20} />} color="slate" />
         </div>
       </div>
 
       {/* Searched Animal Profile */}
       {searchedAnimal && (
-        <div ref={profileRef} className="bg-white rounded-[2rem] p-6 border-2 border-slate-900 shadow-xl animate-in zoom-in duration-300 relative z-20">
-          <div className="flex flex-col md:flex-row justify-between items-center border-b border-slate-100 pb-4 mb-5 gap-4">
-            <div className="flex items-center gap-4">
+        <div ref={profileRef} className="bg-white rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-6 border-2 border-slate-900 shadow-xl animate-in zoom-in duration-300 relative z-20">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-100 pb-4 mb-5 gap-4">
+            <div className="flex items-center gap-4 w-full md:w-auto">
               <div>
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Profile Info (جانور کی تفصیل)</p>
                 <div className="flex items-center gap-3">
-                  <h2 className="text-4xl font-black text-slate-900 tracking-tighter">{searchedAnimal.tagNumber}</h2>
-                  <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${searchedAnimal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                  <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">{searchedAnimal.tagNumber}</h2>
+                  <div className={`px-2 py-1 md:px-3 md:py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${searchedAnimal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
                     searchedAnimal.status === ReproductiveStatus.INSEMINATED ? 'bg-amber-50 text-amber-800 border-amber-200' :
                       searchedAnimal.status === ReproductiveStatus.DRY ? 'bg-blue-50 text-blue-800 border-blue-200' :
                         'bg-slate-50 text-slate-600 border-slate-300'
@@ -319,7 +319,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 no-print">
+            <div className="flex w-full md:w-auto gap-2 no-print overflow-x-auto pb-1 md:pb-0">
               <button onClick={() => setViewHistoryAnimal(searchedAnimal)} className="p-2.5 bg-slate-900 text-white hover:bg-black rounded-xl transition-all shadow-md flex items-center gap-2">
                 <History size={18} />
                 <span className="font-black text-[10px] uppercase tracking-widest">History</span>

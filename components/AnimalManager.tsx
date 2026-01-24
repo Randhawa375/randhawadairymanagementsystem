@@ -39,15 +39,16 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
   const [calvingMother, setCalvingMother] = useState<Animal | null>(null);
   const [editTarget, setEditTarget] = useState<Animal | undefined>(undefined);
 
+  const [calvingDate, setCalvingDate] = useState(new Date().toISOString().split('T')[0]);
   const [calfGender, setCalfGender] = useState<'male' | 'female'>('female');
   const [calfTag, setCalfTag] = useState('');
-  const [calfDescription, setCalvingDescription] = useState('');
+  const [calvingDescription, setCalvingDescription] = useState('');
   const [calfImages, setCalfImages] = useState<string[]>([]);
 
   const handleCalfImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      Array.from(files).forEach(file => {
+      Array.from(files).forEach((file: File) => {
         const reader = new FileReader();
         reader.onloadend = () => {
           if (reader.result) {
@@ -372,7 +373,87 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
             <h3 className="text-xl font-black text-slate-900 tracking-tight">Farm Ledger</h3>
           </div>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* MOBILE CARD VIEW (Visible < md) */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {animals.map(animal => {
+            const daysToCalving = (animal.status === ReproductiveStatus.PREGNANT || animal.status === ReproductiveStatus.DRY) && animal.expectedCalvingDate
+              ? getDaysToCalving(animal.expectedCalvingDate)
+              : null;
+
+            const daysToPregnancyCheck = animal.status === ReproductiveStatus.INSEMINATED && animal.inseminationDate
+              ? getDaysToPregnancyCheck(animal.inseminationDate)
+              : null;
+
+            const daysInDry = animal.status === ReproductiveStatus.DRY
+              ? getDaysSinceLastUpdate(animal.lastUpdated)
+              : null;
+
+            return (
+              <div key={animal.id} className="p-4 bg-white space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="font-black text-2xl text-slate-900">#{animal.tagNumber}</span>
+                    <div className="flex gap-2 mt-1">
+                      <span className="text-[10px] font-black uppercase text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{animal.category}</span>
+                      <span className="text-[10px] font-black uppercase text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{animal.farm}</span>
+                    </div>
+                  </div>
+                  <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${animal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                    animal.status === ReproductiveStatus.INSEMINATED ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                      animal.status === ReproductiveStatus.DRY ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                        'bg-slate-50 text-slate-600 border-slate-300'
+                    }`}>
+                    {animal.status}
+                  </span>
+                </div>
+
+                {/* Status Indicators */}
+                <div className="flex flex-wrap gap-2">
+                  {daysInDry !== null && (
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg border bg-blue-50 border-blue-100">
+                      <Wind size={12} className="text-blue-600" />
+                      <span className="text-[10px] font-black uppercase text-blue-700">{daysInDry} days in dry</span>
+                    </div>
+                  )}
+                  {animal.status === ReproductiveStatus.PREGNANT && getGestationDays(animal.inseminationDate!) && getGestationDays(animal.inseminationDate!)! >= 225 && (
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg border bg-blue-100 border-blue-200 animate-pulse">
+                      <Droplets size={12} className="text-blue-600" />
+                      <span className="text-[10px] font-black uppercase text-blue-800">Needs Dry</span>
+                    </div>
+                  )}
+                  {daysToCalving !== null && (
+                    <div className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border ${daysToCalving <= 0 ? 'bg-rose-100 border-rose-200' : 'bg-emerald-100/50 border-emerald-200'}`}>
+                      <Baby size={12} className={daysToCalving <= 0 ? 'text-rose-600' : 'text-emerald-600'} />
+                      <span className={`text-[10px] font-black uppercase ${daysToCalving <= 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                        {daysToCalving <= 0 ? 'Due for Calving' : `${daysToCalving} days to delivery`}
+                      </span>
+                    </div>
+                  )}
+                  {daysToPregnancyCheck !== null && (
+                    <div className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border ${daysToPregnancyCheck <= 0 ? 'bg-amber-100 border-amber-200' : 'bg-blue-50 border-blue-100'}`}>
+                      <Timer size={12} className={daysToPregnancyCheck <= 0 ? 'text-amber-600' : 'text-blue-600'} />
+                      <span className={`text-[10px] font-black uppercase ${daysToPregnancyCheck <= 0 ? 'text-amber-700' : 'text-blue-700'}`}>
+                        {daysToPregnancyCheck <= 0 ? 'Check Required' : `${daysToPregnancyCheck} days to check`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-2 border-t border-slate-50 no-print">
+                  <button onClick={() => setViewHistoryAnimal(animal)} className="flex-1 py-2 bg-slate-50 text-slate-600 rounded-xl font-black text-xs uppercase hover:bg-slate-100 transition-colors">History</button>
+                  <button onClick={() => handleShiftFarm(animal)} className="flex-1 py-2 bg-amber-50 text-amber-600 rounded-xl font-black text-xs uppercase hover:bg-amber-100 transition-colors">Shift</button>
+                  <button onClick={() => { setEditTarget(animal); setIsModalOpen(true); }} className="flex-1 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-black text-xs uppercase hover:bg-indigo-100 transition-colors">Edit</button>
+                  <button onClick={() => handleDelete(animal.id)} className="w-10 flex items-center justify-center bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"><Trash2 size={16} /></button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* DESKTOP TABLE VIEW (Visible >= md) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-100 border-b-2 border-slate-200">
