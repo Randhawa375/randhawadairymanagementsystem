@@ -300,6 +300,13 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div ref={profileRef} className="bg-white rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-6 border-2 border-slate-900 shadow-xl animate-in zoom-in duration-300 relative z-20">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-100 pb-4 mb-5 gap-4">
             <div className="flex items-center gap-4 w-full md:w-auto">
+              {searchedAnimal.image && (
+                <img
+                  src={searchedAnimal.image}
+                  alt="Animal"
+                  className="w-24 h-24 rounded-2xl object-cover border-4 border-slate-100 shadow-md transform hover:scale-105 transition-transform"
+                />
+              )}
               <div>
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Profile Info (جانور کی تفصیل)</p>
                 <div className="flex items-center gap-3">

@@ -243,7 +243,8 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
           id: generateId(),
           type: 'GENERAL',
           date: calvingDate,
-          details: `Born to Mother Tag: ${calvingMother.tagNumber}`
+          details: `Born to Mother Tag: ${calvingMother.tagNumber}`,
+          semen: calvingMother.semenName || 'Unknown' // Pass semen info to calf history
         }],
         lastUpdated: now
       };
