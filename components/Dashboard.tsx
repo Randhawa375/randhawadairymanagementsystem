@@ -347,6 +347,36 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
             {motherTag && <DataBlock label="Mother Tag" value={motherTag} icon={<Users size={14} />} />}
 
+            {(() => {
+              // Logic to find Sire/Semen
+              // 1. If currently inseminated/pregnant, show that semen (handled by existing code below? No, existing code shows inseminationDate)
+              // 2. If it's a calf, show the semen that created it (Sire)
+              let sireDisplay = null;
+
+              const isCalf = searchedAnimal.category.includes('Calf') || searchedAnimal.status === ReproductiveStatus.OPEN || searchedAnimal.status === ReproductiveStatus.CHILD;
+
+              if (isCalf) {
+                // Try finding in own history (new way)
+                const birthEvent = searchedAnimal.history?.find(h => h.semen && h.details.includes('Born to'));
+                if (birthEvent?.semen) {
+                  sireDisplay = birthEvent.semen;
+                }
+                // Try finding in Mother's history (legacy way)
+                else if (searchedAnimal.motherId) {
+                  const mother = allAnimals.find(a => a.id === searchedAnimal.motherId);
+                  if (mother) {
+                    const birthLog = mother.history?.find(h => h.type === 'CALVING' && (h.calfId === searchedAnimal.id || h.details.includes(searchedAnimal.tagNumber)));
+                    if (birthLog) {
+                      const match = birthLog.details.match(/Semen (.*?) used/);
+                      if (match) sireDisplay = match[1];
+                    }
+                  }
+                }
+              }
+
+              return sireDisplay ? <DataBlock label="Sire / Semen (باپ)" value={sireDisplay} icon={<Activity size={14} />} /> : null;
+            })()}
+
             {searchedAnimal.inseminationDate && (
               <DataBlock label="Insemination Date" value={helpers.formatDate(searchedAnimal.inseminationDate)} icon={<Timer size={14} />} />
             )}
