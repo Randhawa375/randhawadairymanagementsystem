@@ -348,33 +348,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             {motherTag && <DataBlock label="Mother Tag" value={motherTag} icon={<Users size={14} />} />}
 
             {(() => {
-              // Logic to find Sire/Semen
-              // 1. If currently inseminated/pregnant, show that semen (handled by existing code below? No, existing code shows inseminationDate)
-              // 2. If it's a calf, show the semen that created it (Sire)
-              let sireDisplay = null;
-
-              const isCalf = searchedAnimal.category.includes('Calf') || searchedAnimal.status === ReproductiveStatus.OPEN || searchedAnimal.status === ReproductiveStatus.CHILD;
-
-              if (isCalf) {
-                // Try finding in own history (new way)
-                const birthEvent = searchedAnimal.history?.find(h => h.semen && h.details.includes('Born to'));
-                if (birthEvent?.semen) {
-                  sireDisplay = birthEvent.semen;
-                }
-                // Try finding in Mother's history (legacy way)
-                else if (searchedAnimal.motherId) {
-                  const mother = allAnimals.find(a => a.id === searchedAnimal.motherId);
-                  if (mother) {
-                    const birthLog = mother.history?.find(h => h.type === 'CALVING' && (h.calfId === searchedAnimal.id || h.details.includes(searchedAnimal.tagNumber)));
-                    if (birthLog) {
-                      const match = birthLog.details.match(/Semen (.*?) used/);
-                      if (match) sireDisplay = match[1];
-                    }
-                  }
-                }
-              }
-
-              return sireDisplay ? <DataBlock label="Sire / Semen (باپ)" value={sireDisplay} icon={<Activity size={14} />} /> : null;
+              const sire = helpers.getSireInfo(searchedAnimal, allAnimals);
+              return sire ? <DataBlock label="Sire / Semen (باپ)" value={sire} icon={<Activity size={14} />} /> : null;
             })()}
 
             {searchedAnimal.inseminationDate && (
@@ -704,21 +679,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                             }
 
                             // --- Logic to Find Semen for "Born to" events (Child's Perspective) ---
+                            // Use the robust helper if direct semen is missing
                             if (!semenName && event.details.includes('Born to Mother Tag:')) {
-                              // 1. Try to find Mother ID from details (if we had it stored, but we only have Tag in text usually, or we can look up mother by Tag)
-                              const match = event.details.match(/Mother Tag: (.*)/);
-                              if (match && match[1]) {
-                                const motherTag = match[1].trim();
-                                const mother = animals.find(a => a.tagNumber === motherTag);
-                                if (mother) {
-                                  // Find the calving event in Mother's history that involves THIS child (by Tag or ID)
-                                  const birthLog = mother.history?.find(h => h.type === 'CALVING' && (h.calfId === viewHistoryAnimal.id || h.details.includes(viewHistoryAnimal.tagNumber)));
-                                  if (birthLog) {
-                                    const semenMatch = birthLog.details.match(/Semen (.*?) used/);
-                                    if (semenMatch) semenName = semenMatch[1];
-                                  }
-                                }
-                              }
+                              const derivedSire = helpers.getSireInfo(viewHistoryAnimal, allAnimals);
+                              if (derivedSire) semenName = derivedSire;
                             }
 
                             return (

@@ -9,7 +9,8 @@ import {
   getDaysToCalving,
   getDaysToPregnancyCheck,
   getGestationDays,
-  getDaysSinceLastUpdate
+  getDaysSinceLastUpdate,
+  getSireInfo
 } from '../utils/helpers';
 import { uploadImage } from '../utils/storage';
 
@@ -652,20 +653,9 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
 
                             // --- Logic to Find Semen for "Born to" events (Child's Perspective) ---
                             if (!semenName && event.details.includes('Born to Mother Tag:')) {
-                              // 1. Try to find Mother ID from details
-                              const match = event.details.match(/Mother Tag: (.*)/);
-                              if (match && match[1]) {
-                                const motherTag = match[1].trim();
-                                const mother = allAnimals.find(a => a.tagNumber === motherTag);
-                                if (mother) {
-                                  // Find the calving event in Mother's history that involves THIS child
-                                  const birthLog = mother.history?.find(h => h.type === 'CALVING' && (h.calfId === viewHistoryAnimal.id || h.details.includes(viewHistoryAnimal.tagNumber)));
-                                  if (birthLog) {
-                                    const semenMatch = birthLog.details.match(/Semen (.*?) used/);
-                                    if (semenMatch) semenName = semenMatch[1];
-                                  }
-                                }
-                              }
+                              // Use the robust helper
+                              const derivedSire = getSireInfo(viewHistoryAnimal, allAnimals);
+                              if (derivedSire) semenName = derivedSire;
                             }
 
                             return (
