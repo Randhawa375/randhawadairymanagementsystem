@@ -650,13 +650,31 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                               if (match && match[1]) calfTagInfo = match[1];
                             }
 
+                            // --- Logic to Find Semen for "Born to" events (Child's Perspective) ---
+                            if (!semenName && event.details.includes('Born to Mother Tag:')) {
+                              // 1. Try to find Mother ID from details
+                              const match = event.details.match(/Mother Tag: (.*)/);
+                              if (match && match[1]) {
+                                const motherTag = match[1].trim();
+                                const mother = allAnimals.find(a => a.tagNumber === motherTag);
+                                if (mother) {
+                                  // Find the calving event in Mother's history that involves THIS child
+                                  const birthLog = mother.history?.find(h => h.type === 'CALVING' && (h.calfId === viewHistoryAnimal.id || h.details.includes(viewHistoryAnimal.tagNumber)));
+                                  if (birthLog) {
+                                    const semenMatch = birthLog.details.match(/Semen (.*?) used/);
+                                    if (semenMatch) semenName = semenMatch[1];
+                                  }
+                                }
+                              }
+                            }
+
                             return (
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mt-3">
                                 {semenName && (
                                   <div className="flex items-center gap-3 bg-white/60 px-4 py-2 rounded-xl border border-slate-200/50">
                                     <div className="p-1 bg-white rounded-lg shadow-sm"><Activity size={14} className="text-indigo-600" /></div>
                                     <div className="flex flex-col">
-                                      <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Semen Used</span>
+                                      <span className="text-[9px] font-black uppercase tracking-widest leading-none opacity-50">Semen / Sire</span>
                                       <span className="font-extrabold text-sm leading-none mt-1">{semenName}</span>
                                     </div>
                                   </div>
