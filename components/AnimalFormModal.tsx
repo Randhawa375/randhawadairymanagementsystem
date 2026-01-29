@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, Milk, MapPin, Camera } from 'lucide-react';
 import { Animal, AnimalCategory, ReproductiveStatus, FarmLocation } from '../types';
 import { calculateCalvingDate } from '../utils/helpers';
+import { uploadImage } from '../utils/storage';
 
 interface AnimalFormModalProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
     remarks: '',
     medications: '',
   });
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -42,19 +45,37 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
     }
   }, [initialData, activeFarmSelection]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalData = { ...formData };
-    if (finalData.status === ReproductiveStatus.PREGNANT && finalData.inseminationDate) {
-      const calvingDate = calculateCalvingDate(finalData.inseminationDate);
-      if (calvingDate) finalData.expectedCalvingDate = calvingDate.toISOString();
+    setIsUploading(true);
+
+    try {
+      const finalData = { ...formData };
+
+      if (selectedImageFile) {
+        const imageUrl = await uploadImage(selectedImageFile);
+        if (imageUrl) {
+          finalData.image = imageUrl;
+        }
+      }
+
+      if (finalData.status === ReproductiveStatus.PREGNANT && finalData.inseminationDate) {
+        const calvingDate = calculateCalvingDate(finalData.inseminationDate);
+        if (calvingDate) finalData.expectedCalvingDate = calvingDate.toISOString();
+      }
+      onSave(finalData);
+    } catch (error) {
+      console.error("Error saving form:", error);
+    } finally {
+      setIsUploading(false);
     }
-    onSave(finalData);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedImageFile(file);
+      // Create local preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(p => ({ ...p, image: reader.result as string }));
@@ -220,9 +241,9 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
           </div>
 
           <div className="flex gap-4 pt-6">
-            <button type="button" onClick={onClose} className="flex-1 py-5 bg-slate-100 text-slate-900 rounded-3xl font-black text-lg">Cancel</button>
-            <button type="submit" className="flex-[2] py-5 bg-indigo-600 text-white rounded-3xl font-black flex items-center justify-center gap-4 hover:bg-black shadow-xl text-xl transition-all">
-              <Save size={28} /> Confirm Record
+            <button type="button" onClick={onClose} disabled={isUploading} className="flex-1 py-5 bg-slate-100 text-slate-900 rounded-3xl font-black text-lg">Cancel</button>
+            <button type="submit" disabled={isUploading} className="flex-[2] py-5 bg-indigo-600 text-white rounded-3xl font-black flex items-center justify-center gap-4 hover:bg-black shadow-xl text-xl transition-all disabled:opacity-70 disabled:cursor-not-allowed">
+              <Save size={28} /> {isUploading ? 'Uploading...' : 'Confirm Record'}
             </button>
           </div>
         </form>

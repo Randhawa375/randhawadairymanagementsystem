@@ -93,7 +93,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const animalsReadyForCalving = animals.filter(a => {
     if ((a.status !== ReproductiveStatus.PREGNANT && a.status !== ReproductiveStatus.DRY) || !a.expectedCalvingDate) return false;
     const days = helpers.getDaysToCalving(a.expectedCalvingDate);
-    return days !== null && days <= 5;
+    return days !== null && days <= 10;
   });
 
   const animalsDueForDry = animals.filter(a => {

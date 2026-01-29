@@ -11,6 +11,7 @@ import {
   getGestationDays,
   getDaysSinceLastUpdate
 } from '../utils/helpers';
+import { uploadImage } from '../utils/storage';
 
 interface AnimalManagerProps {
   animals: Animal[];
@@ -44,11 +45,14 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
   const [calfTag, setCalfTag] = useState('');
   const [calvingDescription, setCalvingDescription] = useState('');
   const [calfImages, setCalfImages] = useState<string[]>([]);
+  const [calfImageFiles, setCalfImageFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleCalfImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
       Array.from(files).forEach((file: File) => {
+        setCalfImageFiles(prev => [...prev, file]);
         const reader = new FileReader();
         reader.onloadend = () => {
           if (reader.result) {
@@ -62,6 +66,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
 
   const removeCalfImage = (index: number) => {
     setCalfImages(prev => prev.filter((_, i) => i !== index));
+    setCalfImageFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleDelete = async (id: string) => {
@@ -100,7 +105,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
           updatedAnimal = addHistoryEvent(updatedAnimal, {
             type: 'INSEMINATION',
             date: data.inseminationDate || new Date().toISOString(),
-            details: `Inseminated with ${data.semenName}`,
+            details: `Inseminated with ${data.semenName} on ${formatDate(data.inseminationDate || '')}`,
             semen: data.semenName,
             remarks: data.remarks
           });
@@ -135,7 +140,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
         updatedAnimal = addHistoryEvent(updatedAnimal, {
           type: 'INSEMINATION',
           date: data.inseminationDate || new Date().toISOString(),
-          details: `Insemination record updated. Semen: ${data.semenName}`,
+          details: `Insemination record updated. Semen: ${data.semenName} on ${formatDate(data.inseminationDate || '')}`,
           semen: data.semenName,
           remarks: 'Record Correction'
         });
@@ -212,59 +217,73 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
     }
   };
 
-  const handleCalving = (e: React.FormEvent) => {
+  const handleCalving = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!calvingMother || !calfTag) return;
+    setIsUploading(true);
 
-    const now = new Date().toISOString();
-    const newCalf: Animal = {
-      id: generateId(),
-      tagNumber: calfTag,
-      category: calfGender === 'male' ? AnimalCategory.CALF_MALE : AnimalCategory.CALF,
-      status: ReproductiveStatus.OPEN,
-      farm: calvingMother.farm,
-      motherId: calvingMother.id,
-      image: calfImages[0], // Primary image
-      images: calfImages,   // Gallery
-      history: [{
+    try {
+      const uploadedImageUrls: string[] = [];
+      for (const file of calfImageFiles) {
+        const url = await uploadImage(file);
+        if (url) uploadedImageUrls.push(url);
+      }
+
+      const now = new Date().toISOString();
+      const newCalf: Animal = {
         id: generateId(),
-        type: 'GENERAL',
+        tagNumber: calfTag,
+        category: calfGender === 'male' ? AnimalCategory.CALF_MALE : AnimalCategory.CALF,
+        status: ReproductiveStatus.OPEN,
+        farm: calvingMother.farm,
+        motherId: calvingMother.id,
+        image: uploadedImageUrls[0], // Primary image
+        images: uploadedImageUrls,   // Gallery
+        history: [{
+          id: generateId(),
+          type: 'GENERAL',
+          date: calvingDate,
+          details: `Born to Mother Tag: ${calvingMother.tagNumber}`
+        }],
+        lastUpdated: now
+      };
+
+      // Capture previous insemination details for history BEFORE clearing them
+      const previousSemen = calvingMother.semenName || 'Unknown Semen';
+      const previousInsemDate = calvingMother.inseminationDate ? formatDate(calvingMother.inseminationDate) : 'Unknown Date';
+
+      let updatedMother: Animal = {
+        ...calvingMother,
+        status: ReproductiveStatus.NEWLY_CALVED,
+        calvingDate: calvingDate,
+        expectedCalvingDate: undefined,
+        inseminationDate: undefined,
+        semenName: undefined, // Clear semen name as well
+        calvesIds: [...(calvingMother.calvesIds || []), newCalf.id],
+        lastUpdated: now
+      };
+
+      updatedMother = addHistoryEvent(updatedMother, {
+        type: 'CALVING',
         date: calvingDate,
-        details: `Born to Mother Tag: ${calvingMother.tagNumber}`
-      }],
-      lastUpdated: now
-    };
+        details: `Official Calving Recorded: Produced ${calfGender === 'male' ? 'Male Calf' : 'Female Calf'} (Tag: ${calfTag}).\nCycle Info: Semen ${previousSemen} used on ${previousInsemDate}.`,
+        remarks: calvingDescription,
+        calfId: newCalf.id
+      });
 
-    // Capture previous insemination details for history BEFORE clearing them
-    const previousSemen = calvingMother.semenName || 'Unknown Semen';
-    const previousInsemDate = calvingMother.inseminationDate ? formatDate(calvingMother.inseminationDate) : 'Unknown Date';
+      onBatchSave([newCalf, updatedMother]);
 
-    let updatedMother: Animal = {
-      ...calvingMother,
-      status: ReproductiveStatus.NEWLY_CALVED,
-      calvingDate: calvingDate,
-      expectedCalvingDate: undefined,
-      inseminationDate: undefined,
-      semenName: undefined, // Clear semen name as well
-      calvesIds: [...(calvingMother.calvesIds || []), newCalf.id],
-      lastUpdated: now
-    };
-
-    updatedMother = addHistoryEvent(updatedMother, {
-      type: 'CALVING',
-      date: calvingDate,
-      details: `Official Calving Recorded: Produced ${calfGender === 'male' ? 'Male Calf' : 'Female Calf'} (Tag: ${calfTag}).\nCycle Info: Semen ${previousSemen} used on ${previousInsemDate}.`,
-      remarks: calvingDescription,
-      calfId: newCalf.id
-    });
-
-    onBatchSave([newCalf, updatedMother]);
-
-    setIsCalvingModalOpen(false);
-    setCalfTag('');
-    setCalvingDescription('');
-    setCalfImages([]);
-    setCalvingDate(new Date().toISOString().split('T')[0]);
+      setIsCalvingModalOpen(false);
+      setCalfTag('');
+      setCalvingDescription('');
+      setCalfImages([]);
+      setCalfImageFiles([]);
+      setCalvingDate(new Date().toISOString().split('T')[0]);
+    } catch (error) {
+      console.error("Error in calving submission:", error);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const searchedAnimal = useMemo(() => {
@@ -749,8 +768,8 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                   />
                 </div>
 
-                <button type="submit" className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-5 hover:bg-blue-700 shadow-2xl text-2xl transition-all">
-                  <Save size={32} /> Confirm Birth Record
+                <button type="submit" disabled={isUploading} className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-5 hover:bg-blue-700 shadow-2xl text-2xl transition-all disabled:opacity-70">
+                  <Save size={32} /> {isUploading ? 'Uploading & Saving...' : 'Confirm Birth Record'}
                 </button>
               </form>
             </div>
