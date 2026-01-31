@@ -249,6 +249,19 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
     setEditTarget(undefined);
   };
 
+  const handleSold = (animal: Animal) => {
+    if (confirm('Are you sure you want to mark this animal as SOLD? This will remove it from the active farm list.')) {
+      let updatedAnimal = { ...animal, status: ReproductiveStatus.SOLD, lastUpdated: new Date().toISOString() };
+      updatedAnimal = addHistoryEvent(updatedAnimal, {
+        type: 'GENERAL',
+        date: new Date().toISOString(),
+        details: 'Animal SOLD OUT from farm.',
+        remarks: 'Status changed to Sold'
+      });
+      onSave(updatedAnimal);
+    }
+  };
+
   const handleShiftFarm = (animal: Animal) => {
     const newFarm = animal.farm === FarmLocation.MILKING_FARM ? FarmLocation.HEIFER_FARM : FarmLocation.MILKING_FARM;
     const confirmMessage = `Are you sure you want to shift this animal from ${animal.farm} to ${newFarm}?`;
@@ -428,6 +441,14 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               color="amber"
             />
             <QuickActionBtn onClick={() => { setEditTarget(searchedAnimal); setIsModalOpen(true); }} icon={<Edit2 size={18} />} label="Edit Profile" color="slate" />
+            {searchedAnimal.status !== ReproductiveStatus.SOLD && (
+              <QuickActionBtn
+                onClick={() => handleSold(searchedAnimal)}
+                icon={<Wind size={18} />}
+                label="Sold Out"
+                color="rose"
+              />
+            )}
           </div>
         </div>
       )}
