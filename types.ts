@@ -17,7 +17,8 @@ export enum ReproductiveStatus {
   CHILD = 'Child',
   // Male Statuses
   BREEDING_BULL = 'Breeding Bull',
-  OTHER = 'Other'
+  OTHER = 'Other',
+  SOLD = 'Sold'
 }
 
 export enum FarmLocation {

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Milk, MapPin, Camera } from 'lucide-react';
+import { X, Save, Milk, MapPin, Camera, Baby, Plus, Trash2 } from 'lucide-react'; // Added Baby, Plus, Trash2
 import { Animal, AnimalCategory, ReproductiveStatus, FarmLocation } from '../types';
 import { calculateCalvingDate } from '../utils/helpers';
 import { uploadImage } from '../utils/storage';
@@ -8,7 +8,7 @@ import { uploadImage } from '../utils/storage';
 interface AnimalFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Partial<Animal>) => void;
+  onSave: (data: Partial<Animal>, calvesData?: any[]) => void; // Updated signature
   initialData?: Animal;
   activeFarmSelection?: FarmLocation;
   mothersList: Animal[];
@@ -30,18 +30,24 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  // New State for Calves
+  const [showCalfEntry, setShowCalfEntry] = useState(false);
+  const [calves, setCalves] = useState<{ tag: string; gender: 'male' | 'female'; imageFile: File | null; imagePreview: string | null }[]>([
+    { tag: '', gender: 'female', imageFile: null, imagePreview: null }
+  ]);
+
   useEffect(() => {
     if (initialData) {
       setFormData(initialData);
+      setShowCalfEntry(false); // Reset calf entry on edit
     } else if (activeFarmSelection) {
       const initialCat = activeFarmSelection === FarmLocation.MILKING_FARM ? AnimalCategory.MILKING : AnimalCategory.CATTLE;
-      // Set a default status based on the category
-      // Fix: Remove redundant CALF_MALE check since initialCat can only be MILKING or CATTLE here
       const initialStatus = (initialCat === AnimalCategory.CATTLE)
         ? ReproductiveStatus.OTHER
         : ReproductiveStatus.OPEN;
 
       setFormData(prev => ({ ...prev, farm: activeFarmSelection, category: initialCat, status: initialStatus }));
+      setShowCalfEntry(false);
     }
   }, [initialData, activeFarmSelection]);
 
@@ -63,7 +69,27 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
         const calvingDate = calculateCalvingDate(finalData.inseminationDate);
         if (calvingDate) finalData.expectedCalvingDate = calvingDate.toISOString();
       }
-      onSave(finalData);
+
+      // Prepare calf data if applicable
+      let calvesDataToSubmit = undefined;
+      if (showCalfEntry && !initialData) { // Only allow new calf entry on creation, not edit
+        calvesDataToSubmit = [];
+        for (const calf of calves) {
+          if (calf.tag) { // Only add if tag is provided
+            let calfImageUrl = null;
+            if (calf.imageFile) {
+              calfImageUrl = await uploadImage(calf.imageFile);
+            }
+            calvesDataToSubmit.push({
+              tag: calf.tag,
+              gender: calf.gender,
+              image: calfImageUrl
+            });
+          }
+        }
+      }
+
+      onSave(finalData, calvesDataToSubmit);
     } catch (error) {
       console.error("Error saving form:", error);
     } finally {
@@ -75,7 +101,6 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       setSelectedImageFile(file);
-      // Create local preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(p => ({ ...p, image: reader.result as string }));
@@ -84,7 +109,37 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
     }
   };
 
+  // Calf Image Upload Handler
+  const handleCalfImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newCalves = [...calves];
+        newCalves[index].imageFile = file;
+        newCalves[index].imagePreview = reader.result as string;
+        setCalves(newCalves);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const addCalfSlot = () => {
+    setCalves([...calves, { tag: '', gender: 'female', imageFile: null, imagePreview: null }]);
+  };
+
+  const removeCalfSlot = (index: number) => {
+    setCalves(calves.filter((_, i) => i !== index));
+  };
+
+  const updateCalfField = (index: number, field: keyof typeof calves[0], value: any) => {
+    const newCalves = [...calves];
+    (newCalves[index] as any)[field] = value;
+    setCalves(newCalves);
+  };
+
   const isMaleCategory = formData.category === AnimalCategory.CALF_MALE || formData.category === AnimalCategory.CATTLE;
+  const canHaveCalves = !initialData && !isMaleCategory && (formData.category === AnimalCategory.MILKING || formData.status === ReproductiveStatus.NEWLY_CALVED);
 
   // Breeding status options based on gender/category
   const femaleStatuses = [
@@ -103,18 +158,15 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
 
   const activeStatusOptions = isMaleCategory ? maleStatuses : femaleStatuses;
 
-  // Auto-correct status if category changes and current status is invalid for that gender
   const handleCategoryChange = (cat: AnimalCategory) => {
     const isNowMale = cat === AnimalCategory.CALF_MALE || cat === AnimalCategory.CATTLE;
     let newStatus = formData.status;
 
     if (isNowMale) {
-      // If was female status, switch to male
       if (!maleStatuses.find(m => m.s === formData.status)) {
         newStatus = ReproductiveStatus.OTHER;
       }
     } else {
-      // If was male status, switch to female
       if (!femaleStatuses.find(f => f.s === formData.status)) {
         newStatus = ReproductiveStatus.OPEN;
       }
@@ -226,6 +278,63 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
                   placeholder="e.g. Bull #99"
                 />
               </div>
+            </div>
+          )}
+
+          {/* ADD CALF ENTRY SECTION */}
+          {canHaveCalves && (
+            <div className="pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowCalfEntry(!showCalfEntry)}
+                className="flex items-center gap-2 text-indigo-600 font-black uppercase text-xs tracking-widest hover:underline mb-4"
+              >
+                <Baby size={16} />
+                {showCalfEntry ? "Don't Add Calf Details" : "Add Calf Details (If Applicable)"}
+              </button>
+
+              {showCalfEntry && (
+                <div className="space-y-6 bg-slate-50 p-6 rounded-3xl border border-slate-200 animate-in slide-in-from-top-2">
+                  <h4 className="font-black text-slate-800 flex items-center gap-2"><Baby size={20} /> Calf Details</h4>
+                  {calves.map((calf, idx) => (
+                    <div key={idx} className="relative bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                      {calves.length > 1 && (
+                        <button type="button" onClick={() => removeCalfSlot(idx)} className="absolute top-2 right-2 text-rose-500 hover:bg-rose-50 p-1 rounded-full"><Trash2 size={16} /></button>
+                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Calf Tag</label>
+                          <input
+                            value={calf.tag}
+                            onChange={(e) => updateCalfField(idx, 'tag', e.target.value)}
+                            placeholder="Tag ID"
+                            className="w-full px-4 py-3 border-2 rounded-xl font-black text-slate-900"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sex</label>
+                          <div className="flex bg-slate-100 p-1 rounded-xl">
+                            <button type="button" onClick={() => updateCalfField(idx, 'gender', 'female')} className={`flex-1 py-2 rounded-lg font-bold text-xs ${calf.gender === 'female' ? 'bg-white shadow text-indigo-800' : 'text-slate-400'}`}>Female</button>
+                            <button type="button" onClick={() => updateCalfField(idx, 'gender', 'male')} className={`flex-1 py-2 rounded-lg font-bold text-xs ${calf.gender === 'male' ? 'bg-white shadow text-indigo-800' : 'text-slate-400'}`}>Male</button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {calf.imagePreview ? (
+                          <img src={calf.imagePreview} className="w-16 h-16 rounded-xl object-cover border border-slate-200" />
+                        ) : <div className="w-16 h-16 rounded-xl bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center"><Camera size={16} className="text-slate-300" /></div>}
+                        <label className="cursor-pointer bg-slate-100 px-4 py-2 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-200">
+                          Upload Photo
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleCalfImageUpload(idx, e)} />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={addCalfSlot} className="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl font-bold text-slate-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2">
+                    <Plus size={16} /> Add Another Calf (Twins)
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

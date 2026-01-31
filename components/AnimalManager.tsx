@@ -85,12 +85,13 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
     };
   };
 
-  const handleSave = (data: Partial<Animal>) => {
+  const handleSave = (data: Partial<Animal>, calvesData?: any[]) => {
     if (!editTarget && allAnimals.some(a => a.tagNumber === data.tagNumber)) {
       alert(`Tag Number ${data.tagNumber} already exists!`);
       return;
     }
 
+    // 1. EDIT EXISTING RECORD
     if (editTarget) {
       let updatedAnimal: Animal = { ...editTarget, ...data, lastUpdated: new Date().toISOString() };
 
@@ -175,9 +176,38 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       }
 
       onSave(updatedAnimal);
-    } else {
-      const newAnimal: Animal = {
-        id: generateId(),
+    }
+    // 2. CREATE NEW RECORD (With Potential Calves)
+    else {
+      const motherId = generateId();
+      const now = new Date().toISOString();
+      const processedCalves: Animal[] = [];
+
+      // Process Calves First if detected
+      if (calvesData && calvesData.length > 0) {
+        calvesData.forEach(calf => {
+          const calfId = generateId();
+          processedCalves.push({
+            id: calfId,
+            tagNumber: calf.tag,
+            category: calf.gender === 'male' ? AnimalCategory.CALF_MALE : AnimalCategory.CALF,
+            status: ReproductiveStatus.OPEN,
+            farm: data.farm || FarmLocation.MILKING_FARM,
+            motherId: motherId,
+            image: calf.image,
+            history: [{
+              id: generateId(),
+              type: 'GENERAL',
+              date: now,
+              details: `Born to Mother Tag: ${data.tagNumber}`,
+            }],
+            lastUpdated: now
+          });
+        });
+      }
+
+      let newMother: Animal = {
+        id: motherId,
         tagNumber: data.tagNumber || '',
         category: data.category || AnimalCategory.MILKING,
         status: data.status || ReproductiveStatus.OPEN,
@@ -188,15 +218,32 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
         motherId: data.motherId,
         remarks: data.remarks,
         medications: data.medications,
+        calvesIds: processedCalves.map(c => c.id), // Link calves to mother
+        image: data.image,
         history: [{
           id: generateId(),
           type: 'GENERAL',
-          date: new Date().toISOString(),
+          date: now,
           details: 'Animal registered'
         }],
-        lastUpdated: new Date().toISOString(),
+        lastUpdated: now,
       };
-      onSave(newAnimal);
+
+      // Add Calving History to Mother if calves were added
+      if (processedCalves.length > 0) {
+        newMother = addHistoryEvent(newMother, {
+          type: 'CALVING',
+          date: now,
+          details: `Registered with ${processedCalves.length} calf/calves. Tag(s): ${processedCalves.map(c => c.tagNumber).join(', ')}`,
+          remarks: 'Initial Entry with Calves'
+        });
+      }
+
+      if (processedCalves.length > 0) {
+        onBatchSave([newMother, ...processedCalves]);
+      } else {
+        onSave(newMother);
+      }
     }
     setIsModalOpen(false);
     setEditTarget(undefined);

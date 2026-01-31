@@ -27,6 +27,7 @@ import {
 import { Animal, ReproductiveStatus, AnimalCategory, FarmLocation, HistoryEvent } from '../types';
 import AnimalFormModal from './AnimalFormModal';
 import * as helpers from '../utils/helpers';
+import { uploadImage } from '../utils/storage';
 
 interface DashboardProps {
   animals: Animal[];
@@ -71,38 +72,40 @@ const Dashboard: React.FC<DashboardProps> = ({
     a.category !== AnimalCategory.CALF_MALE &&
     a.category !== AnimalCategory.CATTLE;
 
-  const total = animals.length;
-  const newlyCalvedCount = animals.filter(a => a.status === ReproductiveStatus.NEWLY_CALVED && isFemaleBreeder(a)).length;
-  const pregnantCount = animals.filter(a => a.status === ReproductiveStatus.PREGNANT && isFemaleBreeder(a)).length;
-  const inseminatedCount = animals.filter(a => a.status === ReproductiveStatus.INSEMINATED && isFemaleBreeder(a)).length;
-  const dryCount = animals.filter(a => a.status === ReproductiveStatus.DRY && isFemaleBreeder(a)).length;
-  const openCount = animals.filter(a => a.status === ReproductiveStatus.OPEN && isFemaleBreeder(a)).length;
-  const childStatusCount = animals.filter(a => a.status === ReproductiveStatus.CHILD && isFemaleBreeder(a)).length;
+  const activeAnimals = animals.filter(a => a.status !== ReproductiveStatus.SOLD); // Filter active for stats
 
-  const totalHeiferCount = animals.filter(a => a.category === AnimalCategory.HEIFER).length;
-  const cattleCount = animals.filter(a => a.category === AnimalCategory.CATTLE).length;
-  const calfCount = animals.filter(a => a.category === AnimalCategory.CALF).length;
-  const maleCalfCount = animals.filter(a => a.category === AnimalCategory.CALF_MALE).length;
+  const total = activeAnimals.length;
+  const newlyCalvedCount = activeAnimals.filter(a => a.status === ReproductiveStatus.NEWLY_CALVED && isFemaleBreeder(a)).length;
+  const pregnantCount = activeAnimals.filter(a => a.status === ReproductiveStatus.PREGNANT && isFemaleBreeder(a)).length;
+  const inseminatedCount = activeAnimals.filter(a => a.status === ReproductiveStatus.INSEMINATED && isFemaleBreeder(a)).length;
+  const dryCount = activeAnimals.filter(a => a.status === ReproductiveStatus.DRY && isFemaleBreeder(a)).length;
+  const openCount = activeAnimals.filter(a => a.status === ReproductiveStatus.OPEN && isFemaleBreeder(a)).length;
+  const childStatusCount = activeAnimals.filter(a => a.status === ReproductiveStatus.CHILD && isFemaleBreeder(a)).length;
 
-  const animalsDueForCheck = animals.filter(a => {
+  const totalHeiferCount = activeAnimals.filter(a => a.category === AnimalCategory.HEIFER).length;
+  const cattleCount = activeAnimals.filter(a => a.category === AnimalCategory.CATTLE).length;
+  const calfCount = activeAnimals.filter(a => a.category === AnimalCategory.CALF).length;
+  const maleCalfCount = activeAnimals.filter(a => a.category === AnimalCategory.CALF_MALE).length;
+
+  const animalsDueForCheck = activeAnimals.filter(a => {
     if (a.status !== ReproductiveStatus.INSEMINATED || !a.inseminationDate) return false;
     const days = helpers.getDaysToPregnancyCheck(a.inseminationDate);
     return days !== null && days <= 0;
   });
 
-  const animalsReadyForCalving = animals.filter(a => {
+  const animalsReadyForCalving = activeAnimals.filter(a => {
     if ((a.status !== ReproductiveStatus.PREGNANT && a.status !== ReproductiveStatus.DRY) || !a.expectedCalvingDate) return false;
     const days = helpers.getDaysToCalving(a.expectedCalvingDate);
     return days !== null && days <= 10;
   });
 
-  const animalsDueForDry = animals.filter(a => {
+  const animalsDueForDry = activeAnimals.filter(a => {
     if (a.status !== ReproductiveStatus.PREGNANT || !a.inseminationDate) return false;
     const daysGestation = helpers.getGestationDays(a.inseminationDate);
     return daysGestation !== null && daysGestation >= 225;
   });
 
-  const animalsReadyForInsemination = animals.filter(a => {
+  const animalsReadyForInsemination = activeAnimals.filter(a => {
     // Check if animal is eligible for heat (Newly Calved or Open)
     if (a.status !== ReproductiveStatus.NEWLY_CALVED && a.status !== ReproductiveStatus.OPEN) return false;
     // Must have a calving date or be in Open status (which implies previous calving or failed insemination)
@@ -184,9 +187,29 @@ const Dashboard: React.FC<DashboardProps> = ({
     setPendingDryAnimal(null);
   };
 
-  const handleCalving = (e: React.FormEvent) => {
+  const [calvingPhoto, setCalvingPhoto] = useState<File | null>(null);
+  const [calvingPhotoPreview, setCalvingPhotoPreview] = useState<string | null>(null);
+
+  const handleCalvingPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCalvingPhoto(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCalvingPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCalving = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pendingCalvingAnimal || !calfTag) return;
+
+    let photoUrl = undefined;
+    if (calvingPhoto) {
+      photoUrl = await uploadImage(calvingPhoto);
+    }
 
     const now = new Date().toISOString();
     const newCalf: Animal = {
@@ -196,6 +219,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       status: ReproductiveStatus.CHILD,
       farm: pendingCalvingAnimal.farm,
       motherId: pendingCalvingAnimal.id,
+      image: photoUrl || undefined, // Add uploaded photo
       history: [{
         id: helpers.generateId(),
         type: 'GENERAL',
@@ -229,7 +253,10 @@ const Dashboard: React.FC<DashboardProps> = ({
     setCalfTag('');
     setCalvingDescription('');
     setCalvingDate(new Date().toISOString().split('T')[0]);
+    setCalvingPhoto(null);
+    setCalvingPhotoPreview(null);
   };
+
 
   const handleSaveEdit = (data: Partial<Animal>) => {
     if (!editTarget) return;
@@ -589,6 +616,21 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Calf Tag ID (ٹیگ نمبر)</label>
                     <input required type="text" placeholder="e.g., C-101" className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl font-black text-slate-900 text-2xl focus:border-rose-500 outline-none" value={calfTag} onChange={(e) => setCalfTag(e.target.value)} />
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Calf Photo (تصویر)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleCalvingPhotoChange}
+                    className="w-full p-2 border-2 border-slate-200 rounded-2xl text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-900 file:text-white hover:file:bg-black"
+                  />
+                  {calvingPhotoPreview && (
+                    <div className="mt-2">
+                      <img src={calvingPhotoPreview} alt="Preview" className="w-20 h-20 object-cover rounded-xl border-2 border-slate-200" />
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gender (جنس)</label>
