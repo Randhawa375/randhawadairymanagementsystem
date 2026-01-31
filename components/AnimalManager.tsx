@@ -471,7 +471,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               : null;
 
             const daysToPregnancyCheck = animal.status === ReproductiveStatus.INSEMINATED && animal.inseminationDate
-              ? getDaysToPregnancyCheck(animal.inseminationDate)
+              ? getDaysToPregnancyCheck(animal.inseminationDate, animal.category)
               : null;
 
             const daysInDry = animal.status === ReproductiveStatus.DRY

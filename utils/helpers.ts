@@ -2,10 +2,12 @@
 import { addDays, differenceInDays, format, isValid } from 'date-fns';
 
 // Using native Date constructor instead of parseISO to resolve compatibility issues with the date-fns import
-export const calculatePregnancyCheckDate = (inseminationDate: string) => {
+export const calculatePregnancyCheckDate = (inseminationDate: string, category?: string) => {
   const date = new Date(inseminationDate);
   if (!isValid(date)) return null;
-  return addDays(date, 45);
+  // If category is Heifer, check is at 40 days. Otherwise (Milking/Cattle), it's 45 days.
+  const days = category === 'Heifer' ? 40 : 45;
+  return addDays(date, days);
 };
 
 export const calculateCalvingDate = (inseminationDate: string) => {
@@ -20,8 +22,8 @@ export const calculateReInseminationDate = (calvingDate: string) => {
   return addDays(date, 45);
 };
 
-export const getDaysToPregnancyCheck = (inseminationDate: string) => {
-  const checkDate = calculatePregnancyCheckDate(inseminationDate);
+export const getDaysToPregnancyCheck = (inseminationDate: string, category?: string) => {
+  const checkDate = calculatePregnancyCheckDate(inseminationDate, category);
   if (!checkDate) return null;
   return differenceInDays(checkDate, new Date());
 };

@@ -89,7 +89,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const animalsDueForCheck = activeAnimals.filter(a => {
     if (a.status !== ReproductiveStatus.INSEMINATED || !a.inseminationDate) return false;
-    const days = helpers.getDaysToPregnancyCheck(a.inseminationDate);
+    const days = helpers.getDaysToPregnancyCheck(a.inseminationDate, a.category);
     return days !== null && days <= 0;
   });
 
