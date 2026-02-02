@@ -61,7 +61,7 @@ const App: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('animals')
-        .select('*')
+        .select('id, tagNumber, category, status, farm, inseminationDate, semenName, expectedCalvingDate, calvingDate, remarks, medications, lastUpdated, motherId, calvesIds, image, history') // Exclude 'images' gallery for performance
         .eq('user_id', userId)
         .order('lastUpdated', { ascending: false });
 
