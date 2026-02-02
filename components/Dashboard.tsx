@@ -56,9 +56,21 @@ const Dashboard: React.FC<DashboardProps> = ({
   setSearchQuery,
   onLoadDetails
 }) => {
-  const [viewHistoryAnimal, setViewHistoryAnimal] = useState<Animal | null>(null);
+  const [viewHistoryId, setViewHistoryId] = useState<string | null>(null);
+
+  const viewHistoryAnimal = React.useMemo(() => {
+    if (!viewHistoryId) return null;
+    return allAnimals.find(a => a.id === viewHistoryId) || null;
+  }, [allAnimals, viewHistoryId]);
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Animal | undefined>(undefined);
+  const [editTargetId, setEditTargetId] = useState<string | null>(null);
+
+  const editTarget = React.useMemo(() => {
+    if (!editTargetId) return undefined;
+    return allAnimals.find(a => a.id === editTargetId);
+  }, [allAnimals, editTargetId]);
+
   const profileRef = useRef<HTMLDivElement>(null);
 
   const [pendingCheckAnimal, setPendingCheckAnimal] = useState<Animal | null>(null);
@@ -277,7 +289,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
     onUpdateAnimal(updatedAnimal);
     setIsEditModalOpen(false);
-    setEditTarget(undefined);
+    setEditTargetId(null);
   };
 
   return (
@@ -362,7 +374,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex w-full md:w-auto gap-2 no-print overflow-x-auto pb-1 md:pb-0">
               <button
                 onClick={() => {
-                  setViewHistoryAnimal(searchedAnimal);
+                  setViewHistoryId(searchedAnimal.id);
                   if (!searchedAnimal.history) onLoadDetails(searchedAnimal.id);
                 }}
                 className="p-2.5 bg-slate-900 text-white hover:bg-black rounded-xl transition-all shadow-md flex items-center gap-2"
@@ -372,7 +384,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </button>
               <button
                 onClick={() => {
-                  setEditTarget(searchedAnimal);
+                  setEditTargetId(searchedAnimal.id);
                   setIsEditModalOpen(true);
                   if (!searchedAnimal.history) onLoadDetails(searchedAnimal.id);
                 }}
@@ -522,7 +534,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   info={(helpers.getDaysSinceCalving(a.calvingDate!) || 0) + " Days since Calving"}
                   onClick={() => {
                     // Just view/edit
-                    setEditTarget(a);
+                    setEditTargetId(a.id);
                     setIsEditModalOpen(true);
                     if (!a.history) onLoadDetails(a.id);
                   }}
@@ -566,7 +578,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {isEditModalOpen && (
         <AnimalFormModal
           isOpen={isEditModalOpen}
-          onClose={() => { setIsEditModalOpen(false); setEditTarget(undefined); }}
+          onClose={() => { setIsEditModalOpen(false); setEditTargetId(null); }}
           onSave={handleSaveEdit}
           initialData={editTarget}
           mothersList={allAnimals}
@@ -692,7 +704,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
               </div>
-              <button onClick={() => setViewHistoryAnimal(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-400"><X size={32} /></button>
+              <button onClick={() => setViewHistoryId(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-400"><X size={32} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-12 space-y-12 bg-white">
               <div className="relative border-l-4 border-slate-100 pl-10 space-y-12">
@@ -790,7 +802,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
             <div className="p-10 border-t bg-slate-50 flex justify-end no-print">
-              <button onClick={() => setViewHistoryAnimal(null)} className="bg-slate-900 text-white px-12 py-4 rounded-[1.5rem] font-black text-sm uppercase tracking-widest shadow-xl">Close Ledger</button>
+              <button onClick={() => setViewHistoryId(null)} className="bg-slate-900 text-white px-12 py-4 rounded-[1.5rem] font-black text-sm uppercase tracking-widest shadow-xl">Close Ledger</button>
             </div>
           </div>
         </div>

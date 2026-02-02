@@ -39,9 +39,17 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCalvingModalOpen, setIsCalvingModalOpen] = useState(false);
-  const [viewHistoryAnimal, setViewHistoryAnimal] = useState<Animal | null>(null);
+  const [viewHistoryId, setViewHistoryId] = useState<string | null>(null);
   const [calvingMother, setCalvingMother] = useState<Animal | null>(null);
-  const [editTarget, setEditTarget] = useState<Animal | undefined>(undefined);
+  const [editTargetId, setEditTargetId] = useState<string | null>(null);
+
+  const viewHistoryAnimal = useMemo(() => {
+    return allAnimals.find(a => a.id === viewHistoryId) || null;
+  }, [allAnimals, viewHistoryId]);
+
+  const editTarget = useMemo(() => {
+    return allAnimals.find(a => a.id === editTargetId);
+  }, [allAnimals, editTargetId]);
 
   const [calvingDate, setCalvingDate] = useState(new Date().toISOString().split('T')[0]);
   const [calfGender, setCalfGender] = useState<'male' | 'female'>('female');
@@ -286,7 +294,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       }
     }
     setIsModalOpen(false);
-    setEditTarget(undefined);
+    setEditTargetId(null);
   };
 
   const handleSold = (animal: Animal) => {
@@ -412,7 +420,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
           />
         </div>
         <button
-          onClick={() => { setEditTarget(undefined); setIsModalOpen(true); }}
+          onClick={() => { setEditTargetId(null); setIsModalOpen(true); }}
           className="bg-slate-900 text-white px-10 py-4 rounded-xl font-black flex items-center justify-center gap-3 hover:bg-black transition-all shadow-md w-full md:w-auto text-lg"
         >
           <Plus size={24} /> New Record
@@ -445,7 +453,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               </span>
               <button
                 onClick={() => {
-                  setViewHistoryAnimal(searchedAnimal);
+                  setViewHistoryId(searchedAnimal.id);
                   if (!searchedAnimal.history) onLoadDetails(searchedAnimal.id);
                 }}
                 className="flex items-center gap-2 text-indigo-600 font-black text-xs uppercase tracking-widest hover:underline"
@@ -485,7 +493,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
             />
             <QuickActionBtn
               onClick={() => {
-                setEditTarget(searchedAnimal);
+                setEditTargetId(searchedAnimal.id);
                 setIsModalOpen(true);
                 if (!searchedAnimal.history) onLoadDetails(searchedAnimal.id);
               }}
@@ -585,7 +593,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                 <div className="flex gap-2 pt-2 border-t border-slate-50 no-print">
                   <button
                     onClick={() => {
-                      setViewHistoryAnimal(animal);
+                      setViewHistoryId(animal.id);
                       if (!animal.history) onLoadDetails(animal.id);
                     }}
                     className="flex-1 py-2 bg-slate-50 text-slate-600 rounded-xl font-black text-xs uppercase hover:bg-slate-100 transition-colors"
@@ -595,7 +603,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                   <button onClick={() => handleShiftFarm(animal)} className="flex-1 py-2 bg-amber-50 text-amber-600 rounded-xl font-black text-xs uppercase hover:bg-amber-100 transition-colors">Shift</button>
                   <button
                     onClick={() => {
-                      setEditTarget(animal);
+                      setEditTargetId(animal.id);
                       setIsModalOpen(true);
                       if (!animal.history) onLoadDetails(animal.id);
                     }}
@@ -699,7 +707,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                       <div className="flex gap-2 justify-center">
                         <button
                           onClick={() => {
-                            setViewHistoryAnimal(animal);
+                            setViewHistoryId(animal.id);
                             if (!animal.history) onLoadDetails(animal.id);
                           }}
                           className="p-2.5 hover:bg-slate-200 text-slate-500 rounded-xl border border-slate-200 transition-all"
@@ -716,7 +724,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                         </button>
                         <button
                           onClick={() => {
-                            setEditTarget(animal);
+                            setEditTargetId(animal.id);
                             setIsModalOpen(true);
                             if (!animal.history) onLoadDetails(animal.id);
                           }}
@@ -755,7 +763,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                   </div>
                 </div>
               </div>
-              <button onClick={() => setViewHistoryAnimal(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-400"><X size={32} /></button>
+              <button onClick={() => setViewHistoryId(null)} className="p-2 hover:bg-slate-200 rounded-full text-slate-400"><X size={32} /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-12 space-y-12 bg-white">
@@ -863,7 +871,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               >
                 <ArrowRightLeft size={20} /> Shift Farm
               </button>
-              <button onClick={() => setViewHistoryAnimal(null)} className="bg-slate-900 text-white px-12 py-4 rounded-[1.5rem] font-black text-sm uppercase tracking-widest shadow-xl">Close Ledger</button>
+              <button onClick={() => setViewHistoryId(null)} className="bg-slate-900 text-white px-12 py-4 rounded-[1.5rem] font-black text-sm uppercase tracking-widest shadow-xl">Close Ledger</button>
             </div>
           </div>
         </div>
