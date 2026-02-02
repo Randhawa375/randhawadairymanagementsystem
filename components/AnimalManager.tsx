@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Edit2, Trash2, Baby, History, X, Save, ClipboardList, Timer, Droplets, Wind, ArrowRightLeft, Activity, Camera } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Baby, History, X, Save, ClipboardList, Timer, Droplets, Wind, ArrowRightLeft, Activity, Camera, Loader2 } from 'lucide-react';
 import { Animal, AnimalCategory, ReproductiveStatus, FarmLocation, HistoryEvent } from '../types';
 import AnimalFormModal from './AnimalFormModal';
 import {
@@ -860,7 +860,18 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                       );
                     })()}
                   </div>
-                )) || <p className="italic text-slate-400 py-10 text-center">No record logs found.</p>}
+                ))}
+
+                {!viewHistoryAnimal.history && (
+                  <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                    <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+                    <p className="text-slate-400 font-black uppercase tracking-widest text-xs animate-pulse">Loading History...</p>
+                  </div>
+                )}
+
+                {viewHistoryAnimal.history && viewHistoryAnimal.history.length === 0 && (
+                  <p className="italic text-slate-400 py-10 text-center">No record logs found.</p>
+                )}
               </div>
             </div>
 
@@ -875,81 +886,84 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
             </div>
           </div>
         </div>
-      )}
+      )
+      }
 
       {isModalOpen && <AnimalFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} initialData={editTarget} activeFarmSelection={activeFarm !== 'all' ? activeFarm : undefined} mothersList={[]} />}
 
-      {isCalvingModalOpen && calvingMother && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
-          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden border-t-[15px] border-blue-600">
-            <div className="p-10">
-              <div className="flex justify-between items-center mb-10">
-                <h3 className="text-3xl font-black text-slate-900 tracking-tight">Record Official Calving</h3>
-                <button onClick={() => setIsCalvingModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400"><X size={32} /></button>
-              </div>
-              <form onSubmit={handleCalving} className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {
+        isCalvingModalOpen && calvingMother && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
+            <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden border-t-[15px] border-blue-600">
+              <div className="p-10">
+                <div className="flex justify-between items-center mb-10">
+                  <h3 className="text-3xl font-black text-slate-900 tracking-tight">Record Official Calving</h3>
+                  <button onClick={() => setIsCalvingModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400"><X size={32} /></button>
+                </div>
+                <form onSubmit={handleCalving} className="space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Actual Calving Date</label>
+                      <input
+                        type="date" required
+                        className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl font-bold"
+                        value={calvingDate} onChange={(e) => setCalvingDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calf Tag ID</label>
+                      <input
+                        required type="text" placeholder="e.g., C-101"
+                        className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl font-black text-slate-900 text-2xl focus:border-blue-600"
+                        value={calfTag} onChange={(e) => setCalfTag(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calf Photos (بچھڑے کی تصاویر)</label>
+                    <div className="flex flex-wrap gap-4">
+                      <label className="cursor-pointer bg-slate-100 border-2 border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50 w-24 h-24 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all">
+                        <Camera size={20} className="text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Add</span>
+                        <input type="file" accept="image/*" multiple onChange={handleCalfImageUpload} className="hidden" />
+                      </label>
+                      {calfImages.map((img, idx) => (
+                        <div key={idx} className="relative group w-24 h-24">
+                          <img src={img} className="w-full h-full rounded-2xl object-cover border-2 border-slate-200 shadow-sm" />
+                          <button type="button" onClick={() => removeCalfImage(idx)} className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-md transform hover:scale-110">
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex bg-slate-50 p-2 rounded-[1.5rem] border-2 border-slate-100">
+                    <button type="button" onClick={() => setCalfGender('female')} className={`flex-1 py-4 rounded-2xl font-black transition-all ${calfGender === 'female' ? 'bg-white text-indigo-800 shadow-xl' : 'text-slate-400'}`}>Female</button>
+                    <button type="button" onClick={() => setCalfGender('male')} className={`flex-1 py-4 rounded-2xl font-black transition-all ${calfGender === 'male' ? 'bg-white text-indigo-800 shadow-xl' : 'text-slate-400'}`}>Male</button>
+                  </div>
+
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Actual Calving Date</label>
-                    <input
-                      type="date" required
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calving Description / Remarks</label>
+                    <textarea
+                      rows={3}
                       className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl font-bold"
-                      value={calvingDate} onChange={(e) => setCalvingDate(e.target.value)}
+                      placeholder="Enter details about the calving process..."
+                      value={calvingDescription} onChange={(e) => setCalvingDescription(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calf Tag ID</label>
-                    <input
-                      required type="text" placeholder="e.g., C-101"
-                      className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl font-black text-slate-900 text-2xl focus:border-blue-600"
-                      value={calfTag} onChange={(e) => setCalfTag(e.target.value)}
-                    />
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calf Photos (بچھڑے کی تصاویر)</label>
-                  <div className="flex flex-wrap gap-4">
-                    <label className="cursor-pointer bg-slate-100 border-2 border-dashed border-slate-300 hover:border-indigo-500 hover:bg-indigo-50 w-24 h-24 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all">
-                      <Camera size={20} className="text-slate-400" />
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Add</span>
-                      <input type="file" accept="image/*" multiple onChange={handleCalfImageUpload} className="hidden" />
-                    </label>
-                    {calfImages.map((img, idx) => (
-                      <div key={idx} className="relative group w-24 h-24">
-                        <img src={img} className="w-full h-full rounded-2xl object-cover border-2 border-slate-200 shadow-sm" />
-                        <button type="button" onClick={() => removeCalfImage(idx)} className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-md transform hover:scale-110">
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex bg-slate-50 p-2 rounded-[1.5rem] border-2 border-slate-100">
-                  <button type="button" onClick={() => setCalfGender('female')} className={`flex-1 py-4 rounded-2xl font-black transition-all ${calfGender === 'female' ? 'bg-white text-indigo-800 shadow-xl' : 'text-slate-400'}`}>Female</button>
-                  <button type="button" onClick={() => setCalfGender('male')} className={`flex-1 py-4 rounded-2xl font-black transition-all ${calfGender === 'male' ? 'bg-white text-indigo-800 shadow-xl' : 'text-slate-400'}`}>Male</button>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calving Description / Remarks</label>
-                  <textarea
-                    rows={3}
-                    className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl font-bold"
-                    placeholder="Enter details about the calving process..."
-                    value={calvingDescription} onChange={(e) => setCalvingDescription(e.target.value)}
-                  />
-                </div>
-
-                <button type="submit" disabled={isUploading} className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-5 hover:bg-blue-700 shadow-2xl text-2xl transition-all disabled:opacity-70">
-                  <Save size={32} /> {isUploading ? 'Uploading & Saving...' : 'Confirm Birth Record'}
-                </button>
-              </form>
+                  <button type="submit" disabled={isUploading} className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-5 hover:bg-blue-700 shadow-2xl text-2xl transition-all disabled:opacity-70">
+                    <Save size={32} /> {isUploading ? 'Uploading & Saving...' : 'Confirm Birth Record'}
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

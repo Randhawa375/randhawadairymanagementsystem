@@ -798,7 +798,18 @@ const Dashboard: React.FC<DashboardProps> = ({
                       );
                     })()}
                   </div>
-                )) || <p className="italic text-slate-400 py-10 text-center">No record logs found.</p>}
+                ))}
+
+                {!viewHistoryAnimal.history && (
+                  <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                    <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <p className="text-slate-400 font-black uppercase tracking-widest text-xs animate-pulse">Loading History...</p>
+                  </div>
+                )}
+
+                {viewHistoryAnimal.history && viewHistoryAnimal.history.length === 0 && (
+                  <p className="italic text-slate-400 py-10 text-center">No record logs found.</p>
+                )}
               </div>
             </div>
             <div className="p-10 border-t bg-slate-50 flex justify-end no-print">
@@ -806,8 +817,9 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
         </div>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 };
 
