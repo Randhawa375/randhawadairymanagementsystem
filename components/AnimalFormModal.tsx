@@ -52,10 +52,9 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
   }, [initialData, activeFarmSelection]);
 
   // Helpers for render and logic (Moved up for validation access)
-  const isAddMode = !initialData;
   const isMaleCategory = formData.category === AnimalCategory.CALF_MALE || formData.category === AnimalCategory.CATTLE;
-  // Ensure calf details are only addable on Create (not Edit) and for eligible categories
-  const canHaveCalves = isAddMode && !isMaleCategory && (formData.category === AnimalCategory.MILKING || formData.status === ReproductiveStatus.NEWLY_CALVED);
+  // Allow calf details for eligible categories (both Create and Edit)
+  const canHaveCalves = !isMaleCategory && (formData.category === AnimalCategory.MILKING || formData.status === ReproductiveStatus.NEWLY_CALVED);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

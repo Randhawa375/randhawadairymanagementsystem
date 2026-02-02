@@ -175,7 +175,45 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
         }
       }
 
-      onSave(updatedAnimal);
+      // Process Calves Data during Edit (Add new calves)
+      const processedCalves: Animal[] = [];
+      if (calvesData && calvesData.length > 0) {
+        calvesData.forEach(calf => {
+          const calfId = generateId();
+          processedCalves.push({
+            id: calfId,
+            tagNumber: calf.tag,
+            category: calf.gender === 'male' ? AnimalCategory.CALF_MALE : AnimalCategory.CALF,
+            status: ReproductiveStatus.OPEN,
+            farm: data.farm || FarmLocation.MILKING_FARM,
+            motherId: updatedAnimal.id, // Use existing animal ID
+            image: calf.image,
+            history: [{
+              id: generateId(),
+              type: 'GENERAL',
+              date: new Date().toISOString(),
+              details: `Born to Mother Tag: ${updatedAnimal.tagNumber}`,
+            }],
+            lastUpdated: new Date().toISOString()
+          });
+        });
+      }
+
+      // Append new calves to mother's list
+      if (processedCalves.length > 0) {
+        updatedAnimal.calvesIds = [...(updatedAnimal.calvesIds || []), ...processedCalves.map(c => c.id)];
+
+        updatedAnimal = addHistoryEvent(updatedAnimal, {
+          type: 'CALVING',
+          date: new Date().toISOString(),
+          details: `Registered ${processedCalves.length} new calf/calves during update. Tag(s): ${processedCalves.map(c => c.tagNumber).join(', ')}`,
+          remarks: 'Calf added during record edit'
+        });
+
+        onBatchSave([updatedAnimal, ...processedCalves]);
+      } else {
+        onSave(updatedAnimal);
+      }
     }
     // 2. CREATE NEW RECORD (With Potential Calves)
     else {
