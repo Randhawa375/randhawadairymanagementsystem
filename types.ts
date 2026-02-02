@@ -64,5 +64,5 @@ export interface Animal {
   calvesIds?: string[];
   image?: string; // Primary Profile Pic (Base64)
   images?: string[]; // Gallery (Base64 strings)
-  history: HistoryEvent[];
+  history?: HistoryEvent[];
 }

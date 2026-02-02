@@ -40,6 +40,7 @@ interface DashboardProps {
   onUpdateBatch: (animals: Animal[]) => void;
   searchQuery: string;
   setSearchQuery: (val: string) => void;
+  onLoadDetails: (id: string) => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -52,7 +53,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   onUpdateAnimal,
   onUpdateBatch,
   searchQuery,
-  setSearchQuery
+  setSearchQuery,
+  onLoadDetails
 }) => {
   const [viewHistoryAnimal, setViewHistoryAnimal] = useState<Animal | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -130,6 +132,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   useEffect(() => {
     if (searchedAnimal && profileRef.current) {
       profileRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Lazy Load Details if missing
+      if (!searchedAnimal.history || !searchedAnimal.image) {
+        onLoadDetails(searchedAnimal.id);
+      }
     }
   }, [searchedAnimal]);
 
@@ -354,12 +360,22 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             <div className="flex w-full md:w-auto gap-2 no-print overflow-x-auto pb-1 md:pb-0">
-              <button onClick={() => setViewHistoryAnimal(searchedAnimal)} className="p-2.5 bg-slate-900 text-white hover:bg-black rounded-xl transition-all shadow-md flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setViewHistoryAnimal(searchedAnimal);
+                  if (!searchedAnimal.history) onLoadDetails(searchedAnimal.id);
+                }}
+                className="p-2.5 bg-slate-900 text-white hover:bg-black rounded-xl transition-all shadow-md flex items-center gap-2"
+              >
                 <History size={18} />
                 <span className="font-black text-[10px] uppercase tracking-widest">History</span>
               </button>
               <button
-                onClick={() => { setEditTarget(searchedAnimal); setIsEditModalOpen(true); }}
+                onClick={() => {
+                  setEditTarget(searchedAnimal);
+                  setIsEditModalOpen(true);
+                  if (!searchedAnimal.history) onLoadDetails(searchedAnimal.id);
+                }}
                 className="p-2.5 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-xl transition-all border border-indigo-200"
                 title="Edit Record"
               >
@@ -504,7 +520,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                   animal={a}
                   color="emerald"
                   info={(helpers.getDaysSinceCalving(a.calvingDate!) || 0) + " Days since Calving"}
-                  onClick={() => onUpdateAnimal(a)} // Just view/edit for now, or maybe add specific action later
+                  onClick={() => {
+                    // Just view/edit
+                    setEditTarget(a);
+                    setIsEditModalOpen(true);
+                    if (!a.history) onLoadDetails(a.id);
+                  }}
                 />
               ))}
             </AlertGroup>

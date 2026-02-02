@@ -61,7 +61,7 @@ const App: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('animals')
-        .select('id, tagNumber, category, status, farm, inseminationDate, semenName, expectedCalvingDate, calvingDate, remarks, medications, lastUpdated, motherId, calvesIds, image, history') // Exclude 'images' gallery for performance
+        .select('id, tagNumber, category, status, farm, inseminationDate, semenName, expectedCalvingDate, calvingDate, remarks, medications, lastUpdated, motherId, calvesIds') // Lite fetch: Exclude 'history' and 'image'
         .eq('user_id', userId)
         .order('lastUpdated', { ascending: false });
 
@@ -71,6 +71,32 @@ const App: React.FC = () => {
       console.error('Error fetching animals:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAnimalDetails = async (animalId: string) => {
+    if (!currentUser) return;
+
+    // Check if we already have details (history) to avoid redundant fetching
+    const existing = animals.find(a => a.id === animalId);
+    if (existing && existing.history && existing.image) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('animals')
+        .select('id, image, images, history')
+        .eq('id', animalId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setAnimals(prev => prev.map(a =>
+          a.id === animalId ? { ...a, ...data } : a
+        ));
+      }
+    } catch (err) {
+      console.error('Error fetching animal details:', err);
     }
   };
 
@@ -402,6 +428,7 @@ const App: React.FC = () => {
             onUpdateBatch={onSyncBatch}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
+            onLoadDetails={fetchAnimalDetails}
           />
         )}
         {view === 'list' && activeFarm !== 'all' && (
@@ -414,6 +441,7 @@ const App: React.FC = () => {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             activeFarm={activeFarm}
+            onLoadDetails={fetchAnimalDetails}
           />
         )}
         {view === 'reports' && activeFarm === 'all' && (

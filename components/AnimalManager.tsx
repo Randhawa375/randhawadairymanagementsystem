@@ -23,6 +23,7 @@ interface AnimalManagerProps {
   searchQuery: string;
   setSearchQuery: (val: string) => void;
   activeFarm: FarmLocation | 'all';
+  onLoadDetails: (id: string) => void;
 }
 
 const AnimalManager: React.FC<AnimalManagerProps> = ({
@@ -34,6 +35,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
   searchQuery,
   setSearchQuery,
   activeFarm,
+  onLoadDetails
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCalvingModalOpen, setIsCalvingModalOpen] = useState(false);
@@ -442,7 +444,10 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                 {searchedAnimal.status}
               </span>
               <button
-                onClick={() => setViewHistoryAnimal(searchedAnimal)}
+                onClick={() => {
+                  setViewHistoryAnimal(searchedAnimal);
+                  if (!searchedAnimal.history) onLoadDetails(searchedAnimal.id);
+                }}
                 className="flex items-center gap-2 text-indigo-600 font-black text-xs uppercase tracking-widest hover:underline"
               >
                 <History size={14} /> Full History
@@ -478,7 +483,16 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               label={`Shift to ${searchedAnimal.farm === FarmLocation.MILKING_FARM ? 'Cattle Farm' : 'Milking Farm'}`}
               color="amber"
             />
-            <QuickActionBtn onClick={() => { setEditTarget(searchedAnimal); setIsModalOpen(true); }} icon={<Edit2 size={18} />} label="Edit Profile" color="slate" />
+            <QuickActionBtn
+              onClick={() => {
+                setEditTarget(searchedAnimal);
+                setIsModalOpen(true);
+                if (!searchedAnimal.history) onLoadDetails(searchedAnimal.id);
+              }}
+              icon={<Edit2 size={18} />}
+              label="Edit Profile"
+              color="slate"
+            />
             {searchedAnimal.status !== ReproductiveStatus.SOLD && (
               <QuickActionBtn
                 onClick={() => handleSold(searchedAnimal)}
@@ -569,9 +583,26 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-2 border-t border-slate-50 no-print">
-                  <button onClick={() => setViewHistoryAnimal(animal)} className="flex-1 py-2 bg-slate-50 text-slate-600 rounded-xl font-black text-xs uppercase hover:bg-slate-100 transition-colors">History</button>
+                  <button
+                    onClick={() => {
+                      setViewHistoryAnimal(animal);
+                      if (!animal.history) onLoadDetails(animal.id);
+                    }}
+                    className="flex-1 py-2 bg-slate-50 text-slate-600 rounded-xl font-black text-xs uppercase hover:bg-slate-100 transition-colors"
+                  >
+                    History
+                  </button>
                   <button onClick={() => handleShiftFarm(animal)} className="flex-1 py-2 bg-amber-50 text-amber-600 rounded-xl font-black text-xs uppercase hover:bg-amber-100 transition-colors">Shift</button>
-                  <button onClick={() => { setEditTarget(animal); setIsModalOpen(true); }} className="flex-1 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-black text-xs uppercase hover:bg-indigo-100 transition-colors">Edit</button>
+                  <button
+                    onClick={() => {
+                      setEditTarget(animal);
+                      setIsModalOpen(true);
+                      if (!animal.history) onLoadDetails(animal.id);
+                    }}
+                    className="flex-1 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-black text-xs uppercase hover:bg-indigo-100 transition-colors"
+                  >
+                    Edit
+                  </button>
                   <button onClick={() => handleDelete(animal.id)} className="w-10 flex items-center justify-center bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"><Trash2 size={16} /></button>
                 </div>
               </div>
@@ -666,7 +697,16 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                     </td>
                     <td className="p-4 no-print text-center">
                       <div className="flex gap-2 justify-center">
-                        <button onClick={() => setViewHistoryAnimal(animal)} className="p-2.5 hover:bg-slate-200 text-slate-500 rounded-xl border border-slate-200 transition-all" title="History"><History size={18} /></button>
+                        <button
+                          onClick={() => {
+                            setViewHistoryAnimal(animal);
+                            if (!animal.history) onLoadDetails(animal.id);
+                          }}
+                          className="p-2.5 hover:bg-slate-200 text-slate-500 rounded-xl border border-slate-200 transition-all"
+                          title="History"
+                        >
+                          <History size={18} />
+                        </button>
                         <button
                           onClick={() => handleShiftFarm(animal)}
                           className="p-2.5 hover:bg-amber-50 text-amber-600 rounded-xl border border-slate-200 transition-all"
@@ -674,7 +714,17 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                         >
                           <ArrowRightLeft size={18} />
                         </button>
-                        <button onClick={() => { setEditTarget(animal); setIsModalOpen(true); }} className="p-2.5 hover:bg-indigo-50 text-indigo-600 rounded-xl border border-slate-200 transition-all" title="Edit"><Edit2 size={18} /></button>
+                        <button
+                          onClick={() => {
+                            setEditTarget(animal);
+                            setIsModalOpen(true);
+                            if (!animal.history) onLoadDetails(animal.id);
+                          }}
+                          className="p-2.5 hover:bg-indigo-50 text-indigo-600 rounded-xl border border-slate-200 transition-all"
+                          title="Edit"
+                        >
+                          <Edit2 size={18} />
+                        </button>
                         <button onClick={() => handleDelete(animal.id)} className="p-2.5 hover:bg-red-50 text-red-600 rounded-xl border border-slate-200 transition-all" title="Delete"><Trash2 size={18} /></button>
                       </div>
                     </td>
