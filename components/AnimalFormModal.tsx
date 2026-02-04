@@ -65,13 +65,13 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
 
       // Handle Main Image Upload
       if (selectedImageFile) {
-        const imageUrl = await uploadImage(selectedImageFile);
-        if (imageUrl) {
+        try {
+          const imageUrl = await uploadImage(selectedImageFile);
           finalData.image = imageUrl;
-        } else {
-          alert('Failed to upload main image. Please check your connection and try again.');
+        } catch (err: any) {
+          alert(`Failed to upload main image: ${err.message || 'Unknown error'}`);
           setIsUploading(false);
-          return; // Stop submission
+          return;
         }
       }
 
@@ -88,13 +88,10 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
           if (calf.tag) {
             let calfImageUrl = null;
             if (calf.imageFile) {
-              calfImageUrl = await uploadImage(calf.imageFile);
-              if (!calfImageUrl) {
-                alert(`Failed to upload image for calf ${calf.tag}. Saving without image.`);
-                // Option: continue without image, or return to abort. 
-                // Choosing to warn but continue for calves as it's secondary, 
-                // or maybe abort to be safe? Let's abort to be consistent.
-                alert(`Failed to upload image for calf ${calf.tag}. Please try again.`);
+              try {
+                calfImageUrl = await uploadImage(calf.imageFile);
+              } catch (err: any) {
+                alert(`Failed to upload image for calf ${calf.tag}: ${err.message}. Aborting save.`);
                 setIsUploading(false);
                 return;
               }
@@ -109,9 +106,9 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
       }
 
       onSave(finalData, calvesDataToSubmit);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving form:", error);
-      alert('An error occurred while saving. Please try again.');
+      alert(`An error occurred while saving: ${error.message || 'Unknown error'}`);
     } finally {
       setIsUploading(false);
     }

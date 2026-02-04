@@ -32,7 +32,7 @@ export const uploadImage = async (file: File): Promise<string | null> => {
 
         if (uploadError) {
             console.error('Error uploading image:', uploadError);
-            return null;
+            throw new Error(uploadError.message);
         }
 
         const { data } = supabase.storage
@@ -42,6 +42,6 @@ export const uploadImage = async (file: File): Promise<string | null> => {
         return data.publicUrl;
     } catch (error) {
         console.error('Error in uploadImage:', error);
-        return null;
+        throw error;
     }
 };

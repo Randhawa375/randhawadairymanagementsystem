@@ -334,17 +334,21 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
     try {
       const uploadedImageUrls: string[] = [];
       let failedUploads = 0;
+      let lastError = '';
+
       for (const file of calfImageFiles) {
-        const url = await uploadImage(file);
-        if (url) {
+        try {
+          const url = await uploadImage(file);
           uploadedImageUrls.push(url);
-        } else {
+        } catch (err: any) {
+          console.error("Upload failed", err);
           failedUploads++;
+          lastError = err.message;
         }
       }
 
       if (failedUploads > 0) {
-        alert(`${failedUploads} image(s) failed to upload. The record will be saved with the successfully uploaded images.`);
+        alert(`${failedUploads} image(s) failed to upload. Error: ${lastError}. The record will be saved with the successfully uploaded images.`);
       }
 
       const now = new Date().toISOString();
