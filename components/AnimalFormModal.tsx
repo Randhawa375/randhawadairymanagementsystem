@@ -63,10 +63,15 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
     try {
       const finalData = { ...formData };
 
+      // Handle Main Image Upload
       if (selectedImageFile) {
         const imageUrl = await uploadImage(selectedImageFile);
         if (imageUrl) {
           finalData.image = imageUrl;
+        } else {
+          alert('Failed to upload main image. Please check your connection and try again.');
+          setIsUploading(false);
+          return; // Stop submission
         }
       }
 
@@ -77,13 +82,22 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
 
       // Prepare calf data if applicable
       let calvesDataToSubmit = undefined;
-      if (showCalfEntry && canHaveCalves) { // Only allow new calf entry if applicable and in add mode
+      if (showCalfEntry && canHaveCalves) {
         calvesDataToSubmit = [];
         for (const calf of calves) {
-          if (calf.tag) { // Only add if tag is provided
+          if (calf.tag) {
             let calfImageUrl = null;
             if (calf.imageFile) {
               calfImageUrl = await uploadImage(calf.imageFile);
+              if (!calfImageUrl) {
+                alert(`Failed to upload image for calf ${calf.tag}. Saving without image.`);
+                // Option: continue without image, or return to abort. 
+                // Choosing to warn but continue for calves as it's secondary, 
+                // or maybe abort to be safe? Let's abort to be consistent.
+                alert(`Failed to upload image for calf ${calf.tag}. Please try again.`);
+                setIsUploading(false);
+                return;
+              }
             }
             calvesDataToSubmit.push({
               tag: calf.tag,
@@ -97,6 +111,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
       onSave(finalData, calvesDataToSubmit);
     } catch (error) {
       console.error("Error saving form:", error);
+      alert('An error occurred while saving. Please try again.');
     } finally {
       setIsUploading(false);
     }
