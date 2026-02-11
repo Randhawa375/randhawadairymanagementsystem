@@ -4,6 +4,7 @@ import { X, Save, Milk, MapPin, Camera, Baby, Plus, Trash2 } from 'lucide-react'
 import { Animal, AnimalCategory, ReproductiveStatus, FarmLocation } from '../types';
 import { calculateCalvingDate } from '../utils/helpers';
 import { uploadImage } from '../utils/storage';
+import ImageModal from './ImageModal';
 
 interface AnimalFormModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
   });
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
   // New State for Calves
   const [showCalfEntry, setShowCalfEntry] = useState(false);
@@ -229,7 +231,12 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
               </label>
               {formData.image ? (
                 <div className="relative group">
-                  <img src={formData.image} alt="Preview" className="w-24 h-24 rounded-2xl object-cover border-2 border-indigo-200 shadow-md" />
+                  <img
+                    src={formData.image}
+                    alt="Preview"
+                    className="w-24 h-24 rounded-2xl object-cover border-2 border-indigo-200 shadow-md cursor-pointer hover:scale-105 transition-all"
+                    onClick={() => setFullScreenImage(formData.image!)}
+                  />
                   <button type="button" onClick={() => setFormData(p => ({ ...p, image: undefined }))} className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><X size={14} /></button>
                 </div>
               ) : (
@@ -337,7 +344,11 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
                       </div>
                       <div className="flex items-center gap-4">
                         {calf.imagePreview ? (
-                          <img src={calf.imagePreview} className="w-16 h-16 rounded-xl object-cover border border-slate-200" />
+                          <img
+                            src={calf.imagePreview}
+                            className="w-16 h-16 rounded-xl object-cover border border-slate-200 cursor-pointer hover:scale-105 transition-all"
+                            onClick={() => setFullScreenImage(calf.imagePreview!)}
+                          />
                         ) : <div className="w-16 h-16 rounded-xl bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center"><Camera size={16} className="text-slate-300" /></div>}
                         <label className="cursor-pointer bg-slate-100 px-4 py-2 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-200">
                           Upload Photo
@@ -373,6 +384,10 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
           </div>
         </form>
       </div>
+
+      {fullScreenImage && (
+        <ImageModal imageUrl={fullScreenImage} onClose={() => setFullScreenImage(null)} />
+      )}
     </div>
   );
 };

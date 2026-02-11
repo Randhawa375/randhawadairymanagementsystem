@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Search, Edit2, Trash2, Baby, History, X, Save, ClipboardList, Timer, Droplets, Wind, ArrowRightLeft, Activity, Camera, Loader2 } from 'lucide-react';
 import { Animal, AnimalCategory, ReproductiveStatus, FarmLocation, HistoryEvent } from '../types';
 import AnimalFormModal from './AnimalFormModal';
+import ImageModal from './ImageModal';
 import {
   formatDate,
   generateId,
@@ -42,6 +43,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
   const [viewHistoryId, setViewHistoryId] = useState<string | null>(null);
   const [calvingMother, setCalvingMother] = useState<Animal | null>(null);
   const [editTargetId, setEditTargetId] = useState<string | null>(null);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
   const viewHistoryAnimal = useMemo(() => {
     return allAnimals.find(a => a.id === viewHistoryId) || null;
@@ -445,7 +447,12 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
           <div className="flex justify-between items-start border-b-2 border-slate-100 pb-6 mb-6">
             <div className="flex items-center gap-6">
               {searchedAnimal.image && (
-                <img src={searchedAnimal.image} className="w-32 h-32 rounded-2xl object-cover border-4 border-slate-100 shadow-lg" alt="Animal" />
+                <img
+                  src={searchedAnimal.image}
+                  className="w-32 h-32 rounded-2xl object-cover border-4 border-slate-100 shadow-lg cursor-pointer hover:scale-105 transition-transform"
+                  alt="Animal"
+                  onClick={() => setFullScreenImage(searchedAnimal.image!)}
+                />
               )}
               <div>
                 <p className="text-xs font-black text-slate-500 uppercase mb-1">Tag Number</p>
@@ -976,6 +983,10 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
           </div>
         )
       }
+
+      {fullScreenImage && (
+        <ImageModal imageUrl={fullScreenImage} onClose={() => setFullScreenImage(null)} />
+      )}
     </div >
   );
 };

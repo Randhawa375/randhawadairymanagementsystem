@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Animal, ReproductiveStatus, AnimalCategory, FarmLocation, HistoryEvent } from '../types';
 import AnimalFormModal from './AnimalFormModal';
+import ImageModal from './ImageModal';
 import * as helpers from '../utils/helpers';
 import { uploadImage } from '../utils/storage';
 
@@ -57,6 +58,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onLoadDetails
 }) => {
   const [viewHistoryId, setViewHistoryId] = useState<string | null>(null);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
   const viewHistoryAnimal = React.useMemo(() => {
     if (!viewHistoryId) return null;
@@ -349,7 +351,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <img
                   src={searchedAnimal.image}
                   alt="Animal"
-                  className="w-24 h-24 rounded-2xl object-cover border-4 border-slate-100 shadow-md transform hover:scale-105 transition-transform"
+                  className="w-24 h-24 rounded-2xl object-cover border-4 border-slate-100 shadow-md transform hover:scale-105 transition-transform cursor-pointer"
+                  onClick={() => setFullScreenImage(searchedAnimal.image!)}
                 />
               )}
               <div>
@@ -689,7 +692,12 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="p-10 border-b-2 border-slate-100 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-5">
                 {viewHistoryAnimal.image ? (
-                  <img src={viewHistoryAnimal.image} className="w-24 h-24 rounded-3xl object-cover shadow-xl border-4 border-white" alt="Profile" />
+                  <img
+                    src={viewHistoryAnimal.image}
+                    className="w-24 h-24 rounded-3xl object-cover shadow-xl border-4 border-white cursor-pointer hover:scale-105 transition-all"
+                    alt="Profile"
+                    onClick={() => setFullScreenImage(viewHistoryAnimal.image!)}
+                  />
                 ) : (
                   <div className="bg-indigo-900 text-white p-4 rounded-3xl shadow-xl"><History size={28} /></div>
                 )}
