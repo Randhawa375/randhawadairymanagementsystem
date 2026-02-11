@@ -21,7 +21,7 @@ const ImageModal: React.FC<ImageModalProps> = ({ imageUrl, onClose }) => {
 
     return (
         <div
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-8 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-8 bg-black/95 backdrop-blur-xl transition-opacity duration-300"
             onClick={onClose}
         >
             <div
@@ -51,7 +51,7 @@ const ImageModal: React.FC<ImageModalProps> = ({ imageUrl, onClose }) => {
                     <img
                         src={imageUrl}
                         alt="Full size"
-                        className="max-w-full max-h-full object-contain shadow-2xl animate-in zoom-in duration-500 rounded-lg"
+                        className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
                     />
                 </div>
 

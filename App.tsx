@@ -61,7 +61,7 @@ const App: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('animals')
-        .select('id, tagNumber, category, status, farm, inseminationDate, semenName, expectedCalvingDate, calvingDate, remarks, medications, lastUpdated, motherId, calvesIds') // Lite fetch: Exclude 'history' and 'image'
+        .select('id, tagNumber, name, category, status, farm, inseminationDate, semenName, expectedCalvingDate, calvingDate, remarks, medications, lastUpdated, motherId, calvesIds') // Lite fetch: Exclude 'history' and 'image'
         .eq('user_id', userId)
         .order('lastUpdated', { ascending: false });
 

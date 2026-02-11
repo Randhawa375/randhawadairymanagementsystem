@@ -585,6 +585,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           onSave={handleSaveEdit}
           initialData={editTarget}
           mothersList={allAnimals}
+          allAnimals={allAnimals}
+          editAnimal={editTarget}
         />
       )}
 

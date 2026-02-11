@@ -98,11 +98,6 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
   };
 
   const handleSave = (data: Partial<Animal>, calvesData?: any[]) => {
-    if (!editTarget && allAnimals.some(a => a.tagNumber === data.tagNumber)) {
-      alert(`Tag Number ${data.tagNumber} already exists!`);
-      return;
-    }
-
     // 1. EDIT EXISTING RECORD
     if (editTarget) {
       let updatedAnimal: Animal = { ...editTarget, ...data, lastUpdated: new Date().toISOString() };
@@ -174,8 +169,8 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       // 4. General Field Updates (Category, Farm, etc.) - Detect other changes
       if (!isStatusChanged && !isMedsChanged && !isInsemDataChanged) {
         const changes: string[] = [];
-        if (data.category !== editTarget.category) changes.push(`Category: ${editTarget.category} -> ${data.category}`);
-        if (data.farm !== editTarget.farm) changes.push(`Location: ${editTarget.farm} -> ${data.farm}`);
+        if (data.category && data.category !== editTarget.category) changes.push(`Category: ${editTarget.category} -> ${data.category}`);
+        if (data.farm && data.farm !== editTarget.farm) changes.push(`Location: ${editTarget.farm} -> ${data.farm}`);
         if (data.remarks !== editTarget.remarks && data.remarks) changes.push(`Note Added`);
 
         if (changes.length > 0) {
@@ -259,6 +254,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       let newMother: Animal = {
         id: motherId,
         tagNumber: data.tagNumber || '',
+        name: data.name,
         category: data.category || AnimalCategory.MILKING,
         status: data.status || ReproductiveStatus.OPEN,
         farm: data.farm || FarmLocation.MILKING_FARM,
@@ -909,7 +905,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       )
       }
 
-      {isModalOpen && <AnimalFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} initialData={editTarget} activeFarmSelection={activeFarm !== 'all' ? activeFarm : undefined} mothersList={[]} />}
+      {isModalOpen && <AnimalFormModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSave} initialData={editTarget} activeFarmSelection={activeFarm !== 'all' ? activeFarm : undefined} mothersList={[]} allAnimals={allAnimals} editAnimal={editTarget} />}
 
       {
         isCalvingModalOpen && calvingMother && (

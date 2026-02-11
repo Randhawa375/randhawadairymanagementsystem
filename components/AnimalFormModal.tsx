@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, Milk, MapPin, Camera, Baby, Plus, Trash2 } from 'lucide-react'; // Added Baby, Plus, Trash2
+import { X, Save, Milk, MapPin, Camera, Baby, Plus, Trash2, ClipboardList, User as UserIcon } from 'lucide-react';
 import { Animal, AnimalCategory, ReproductiveStatus, FarmLocation } from '../types';
 import { calculateCalvingDate } from '../utils/helpers';
 import { uploadImage } from '../utils/storage';
@@ -9,17 +9,20 @@ import ImageModal from './ImageModal';
 interface AnimalFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Partial<Animal>, calvesData?: any[]) => void; // Updated signature
+  onSave: (animal: Animal) => void;
   initialData?: Animal;
   activeFarmSelection?: FarmLocation;
   mothersList: Animal[];
+  allAnimals?: Animal[]; // Added for global duplication checks
+  editAnimal?: Animal | null;
 }
 
 const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
-  isOpen, onClose, onSave, initialData, activeFarmSelection, mothersList
+  isOpen, onClose, onSave, initialData, activeFarmSelection, mothersList, allAnimals, editAnimal
 }) => {
   const [formData, setFormData] = useState<Partial<Animal>>({
     tagNumber: '',
+    name: '',
     category: AnimalCategory.MILKING,
     status: ReproductiveStatus.OPEN,
     farm: activeFarmSelection || FarmLocation.MILKING_FARM,
@@ -63,6 +66,28 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
     setIsUploading(true);
 
     try {
+      // Duplication Check
+      const checkList = allAnimals && allAnimals.length > 0 ? allAnimals : mothersList;
+      const duplicateTag = checkList.find(a =>
+        a.tagNumber.toLowerCase() === formData.tagNumber?.toLowerCase() && a.id !== editAnimal?.id
+      );
+      if (duplicateTag) {
+        alert(`Duplicate Tag ID: Tag No. ${formData.tagNumber} is already registered.`);
+        setIsUploading(false);
+        return;
+      }
+
+      if (formData.name) {
+        const duplicateName = checkList.find(a =>
+          a.name?.toLowerCase() === formData.name?.toLowerCase() && a.id !== editAnimal?.id
+        );
+        if (duplicateName) {
+          alert(`Duplicate Name: The name "${formData.name}" is already registered.`);
+          setIsUploading(false);
+          return;
+        }
+      }
+
       const finalData = { ...formData };
 
       // Handle Main Image Upload
@@ -107,7 +132,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
         }
       }
 
-      onSave(finalData, calvesDataToSubmit);
+      onSave(finalData as Animal); // Cast to Animal as it should be complete by now
     } catch (error: any) {
       console.error("Error saving form:", error);
       alert(`An error occurred while saving: ${error.message || 'Unknown error'}`);
@@ -209,14 +234,36 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-10 space-y-8 overflow-y-auto max-h-[80vh] bg-white">
-          <div className="space-y-2">
-            <label>Tag Number (ٹیگ نمبر)</label>
-            <input
-              required autoFocus value={formData.tagNumber}
-              onChange={(e) => setFormData(p => ({ ...p, tagNumber: e.target.value }))}
-              className="w-full px-6 py-5 border-2 rounded-2xl text-4xl font-black text-slate-900 focus:border-indigo-600 outline-none shadow-sm"
-              placeholder="000"
-            />
+          {/* Tag ID & Name */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <ClipboardList size={14} className="text-indigo-600" />
+                Tag Number (ٹیگ نمبر)
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.tagNumber}
+                onChange={e => setFormData(p => ({ ...p, tagNumber: e.target.value }))}
+                placeholder="Enter Tag ID"
+                className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-slate-900 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <UserIcon size={14} className="text-indigo-600" />
+                Animal Name (جانور کا نام)
+              </label>
+              <input
+                type="text"
+                value={formData.name || ''}
+                onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
+                placeholder="Optional Name"
+                className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-slate-900 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

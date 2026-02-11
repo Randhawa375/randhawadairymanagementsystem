@@ -50,6 +50,7 @@ export interface HistoryEvent {
 export interface Animal {
   id: string;
   tagNumber: string;
+  name?: string;
   category: AnimalCategory;
   status: ReproductiveStatus;
   farm: FarmLocation;
