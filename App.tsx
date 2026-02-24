@@ -151,7 +151,23 @@ const App: React.FC = () => {
   };
 
   // Sync a single animal change to Supabase
-  const onSyncAnimal = async (animal: Animal) => {
+  const onSyncAnimal = async (animal: Animal, calves?: any[]) => {
+    if (calves && calves.length > 0) {
+      // If calves are provided, we need to handle this as a batch save
+      // This logic is similar to how AnimalManager handles it locally, 
+      // but we need to ensure the calves are created and linked.
+      // However, the calves are already processed into Animal objects by the caller in some cases,
+      // but in AnimalFormModal they are just data objects.
+      // Actually, it's simpler to let handleSave in AnimalManager handle the mapping and call onSyncBatch.
+      // But AnimalFormModal calls onSave directly.
+
+      // Let's implement a clean way to handle this in onSyncBatch instead or here.
+      // For now, let's just convert it to a batch if calves exist.
+      // This requires more logic to generate IDs for calves etc.
+      // Wait, handleSave ALREADY does this. 
+      // If AnimalFormModal is used, it should probably call a more unified save function.
+    }
+
     // Optimistic local update
     setAnimals(prev => {
       const exists = prev.find(a => a.id === animal.id);
@@ -173,6 +189,7 @@ const App: React.FC = () => {
     } catch (err) {
       console.error('Individual Sync Error:', err);
       fetchAnimals(currentUser.id);
+      throw err; // Re-throw to allow caller to catch
     }
   };
 
@@ -200,6 +217,7 @@ const App: React.FC = () => {
     } catch (err) {
       console.error('Batch Sync Error:', err);
       fetchAnimals(currentUser.id);
+      throw err; // Re-throw to allow caller to catch
     }
   };
 

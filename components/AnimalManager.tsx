@@ -18,8 +18,8 @@ import { uploadImage } from '../utils/storage';
 interface AnimalManagerProps {
   animals: Animal[];
   allAnimals: Animal[];
-  onSave: (animal: Animal) => void;
-  onBatchSave: (animals: Animal[]) => void;
+  onSave: (animal: Animal, calves?: any[]) => Promise<void>;
+  onBatchSave: (animals: Animal[]) => Promise<void>;
   onDelete: (id: string) => void;
   searchQuery: string;
   setSearchQuery: (val: string) => void;
@@ -64,11 +64,11 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
   const handleCalfImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      Array.from(files).forEach((file: File) => {
-        setCalfImageFiles(prev => [...prev, file]);
-        const objectUrl = URL.createObjectURL(file);
-        setCalfImages(prev => [...prev, objectUrl]);
-      });
+      const fileList = Array.from(files) as File[];
+      setCalfImageFiles(prev => [...prev, ...fileList]);
+
+      const newUrls = fileList.map(file => URL.createObjectURL(file));
+      setCalfImages(prev => [...prev, ...newUrls]);
     }
   };
 
@@ -96,7 +96,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
     };
   };
 
-  const handleSave = (data: Partial<Animal>, calvesData?: any[]) => {
+  const handleSave = async (data: Partial<Animal>, calvesData?: any[]) => {
     // 1. EDIT EXISTING RECORD
     if (editTarget) {
       let updatedAnimal: Animal = { ...editTarget, ...data, lastUpdated: new Date().toISOString() };
@@ -216,9 +216,9 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
           remarks: 'Calf added during record edit'
         });
 
-        onBatchSave([updatedAnimal, ...processedCalves]);
+        await onBatchSave([updatedAnimal, ...processedCalves]);
       } else {
-        onSave(updatedAnimal);
+        await onSave(updatedAnimal, calvesData);
       }
     }
     // 2. CREATE NEW RECORD (With Potential Calves)
@@ -285,16 +285,16 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       }
 
       if (processedCalves.length > 0) {
-        onBatchSave([newMother, ...processedCalves]);
+        await onBatchSave([newMother, ...processedCalves]);
       } else {
-        onSave(newMother);
+        await onSave(newMother);
       }
     }
     setIsModalOpen(false);
     setEditTargetId(null);
   };
 
-  const handleSold = (animal: Animal) => {
+  const handleSold = async (animal: Animal) => {
     if (confirm('Are you sure you want to mark this animal as SOLD? This will remove it from the active farm list.')) {
       let updatedAnimal = { ...animal, status: ReproductiveStatus.SOLD, lastUpdated: new Date().toISOString() };
       updatedAnimal = addHistoryEvent(updatedAnimal, {
@@ -303,11 +303,11 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
         details: 'Animal SOLD OUT from farm.',
         remarks: 'Status changed to Sold'
       });
-      onSave(updatedAnimal);
+      await onSave(updatedAnimal);
     }
   };
 
-  const handleShiftFarm = (animal: Animal) => {
+  const handleShiftFarm = async (animal: Animal) => {
     const newFarm = animal.farm === FarmLocation.MILKING_FARM ? FarmLocation.HEIFER_FARM : FarmLocation.MILKING_FARM;
     const confirmMessage = `Are you sure you want to shift this animal from ${animal.farm} to ${newFarm}?`;
 
@@ -319,7 +319,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
         details: `Shifted from ${animal.farm} to ${newFarm}`,
         remarks: 'Manual Shift'
       });
-      onSave(updatedAnimal);
+      await onSave(updatedAnimal);
     }
   };
 
@@ -391,7 +391,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
         calfId: newCalf.id
       });
 
-      onBatchSave([newCalf, updatedMother]);
+      await onBatchSave([newCalf, updatedMother]);
 
       // Build-in cleanup: Revoke object URLs after submission
       calfImages.forEach(url => {
@@ -404,8 +404,9 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       setCalfImages([]);
       setCalfImageFiles([]);
       setCalvingDate(new Date().toISOString().split('T')[0]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in calving submission:", error);
+      alert("Failed to save calving record: " + (error.message || "Unknown error"));
     } finally {
       setIsUploading(false);
     }

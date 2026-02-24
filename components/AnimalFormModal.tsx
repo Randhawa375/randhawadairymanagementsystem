@@ -9,7 +9,7 @@ import ImageModal from './ImageModal';
 interface AnimalFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (animal: Animal) => void;
+  onSave: (animal: Animal, calves?: any[]) => Promise<void>;
   initialData?: Animal;
   activeFarmSelection?: FarmLocation;
   mothersList: Animal[];
@@ -132,7 +132,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
         }
       }
 
-      onSave(finalData as Animal); // Cast to Animal as it should be complete by now
+      await onSave(finalData as Animal, calvesDataToSubmit);
     } catch (error: any) {
       console.error("Error saving form:", error);
       alert(`An error occurred while saving: ${error.message || 'Unknown error'}`);
@@ -143,7 +143,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
       }
       calves.forEach(c => {
         if (c.imagePreview?.startsWith('blob:')) {
-          URL.revokeObjectURL(c.imagePreview);
+          URL.revokeObjectURL(c.imagePreview!);
         }
       });
       setIsUploading(false);
