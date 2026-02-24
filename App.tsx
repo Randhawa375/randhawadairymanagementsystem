@@ -61,11 +61,32 @@ const App: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('animals')
-        .select('id, tagNumber, name, category, status, farm, inseminationDate, semenName, expectedCalvingDate, calvingDate, remarks, medications, lastUpdated, motherId, calvesIds') // Lite fetch: Exclude 'history' and 'image'
+        .select(`
+          id, 
+          tagNumber, 
+          name, 
+          category, 
+          status, 
+          farm, 
+          inseminationDate, 
+          semenName, 
+          expectedCalvingDate, 
+          calvingDate, 
+          remarks, 
+          medications, 
+          lastUpdated, 
+          motherId, 
+          calvesIds
+        `)
         .eq('user_id', userId)
         .order('lastUpdated', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase Fetch Error:', error);
+        throw error;
+      }
+
+      console.log(`Fetched ${data?.length || 0} animals for user ${userId}`);
       setAnimals(data || []);
     } catch (err) {
       console.error('Error fetching animals:', err);

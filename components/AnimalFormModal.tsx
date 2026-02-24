@@ -137,6 +137,15 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
       console.error("Error saving form:", error);
       alert(`An error occurred while saving: ${error.message || 'Unknown error'}`);
     } finally {
+      // Cleanup Object URLs after submission attempt (success or failure)
+      if (formData.image?.startsWith('blob:')) {
+        URL.revokeObjectURL(formData.image);
+      }
+      calves.forEach(c => {
+        if (c.imagePreview?.startsWith('blob:')) {
+          URL.revokeObjectURL(c.imagePreview);
+        }
+      });
       setIsUploading(false);
     }
   };
@@ -144,12 +153,13 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Cleanup previous object URL if it exists
+      if (formData.image?.startsWith('blob:')) {
+        URL.revokeObjectURL(formData.image);
+      }
       setSelectedImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(p => ({ ...p, image: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      const objectUrl = URL.createObjectURL(file);
+      setFormData(p => ({ ...p, image: objectUrl }));
     }
   };
 
@@ -157,14 +167,14 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
   const handleCalfImageUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const newCalves = [...calves];
-        newCalves[index].imageFile = file;
-        newCalves[index].imagePreview = reader.result as string;
-        setCalves(newCalves);
-      };
-      reader.readAsDataURL(file);
+      const newCalves = [...calves];
+      // Cleanup previous preview if it's a blob URL
+      if (newCalves[index].imagePreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(newCalves[index].imagePreview!);
+      }
+      newCalves[index].imageFile = file;
+      newCalves[index].imagePreview = URL.createObjectURL(file);
+      setCalves(newCalves);
     }
   };
 
@@ -173,6 +183,10 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
   };
 
   const removeCalfSlot = (index: number) => {
+    const preview = calves[index].imagePreview;
+    if (preview?.startsWith('blob:')) {
+      URL.revokeObjectURL(preview);
+    }
     setCalves(calves.filter((_, i) => i !== index));
   };
 

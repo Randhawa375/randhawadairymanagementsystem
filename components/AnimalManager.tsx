@@ -66,18 +66,17 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
     if (files) {
       Array.from(files).forEach((file: File) => {
         setCalfImageFiles(prev => [...prev, file]);
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (reader.result) {
-            setCalfImages(prev => [...prev, reader.result as string]);
-          }
-        };
-        reader.readAsDataURL(file);
+        const objectUrl = URL.createObjectURL(file);
+        setCalfImages(prev => [...prev, objectUrl]);
       });
     }
   };
 
   const removeCalfImage = (index: number) => {
+    const imageUrlToRevoke = calfImages[index];
+    if (imageUrlToRevoke.startsWith('blob:')) {
+      URL.revokeObjectURL(imageUrlToRevoke);
+    }
     setCalfImages(prev => prev.filter((_, i) => i !== index));
     setCalfImageFiles(prev => prev.filter((_, i) => i !== index));
   };
@@ -393,6 +392,11 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       });
 
       onBatchSave([newCalf, updatedMother]);
+
+      // Build-in cleanup: Revoke object URLs after submission
+      calfImages.forEach(url => {
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      });
 
       setIsCalvingModalOpen(false);
       setCalfTag('');
