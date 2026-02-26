@@ -392,24 +392,26 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       });
 
       await onBatchSave([newCalf, updatedMother]);
-
-      // Build-in cleanup: Revoke object URLs after submission
-      calfImages.forEach(url => {
-        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
-      });
-
-      setIsCalvingModalOpen(false);
-      setCalfTag('');
-      setCalvingDescription('');
-      setCalfImages([]);
-      setCalfImageFiles([]);
-      setCalvingDate(new Date().toISOString().split('T')[0]);
+      closeCalvingModal();
     } catch (error: any) {
       console.error("Error in calving submission:", error);
       alert("Failed to save calving record: " + (error.message || "Unknown error"));
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const closeCalvingModal = () => {
+    // Cleanup: Revoke object URLs
+    calfImages.forEach(url => {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+    });
+    setIsCalvingModalOpen(false);
+    setCalfTag('');
+    setCalvingDescription('');
+    setCalfImages([]);
+    setCalfImageFiles([]);
+    setCalvingDate(new Date().toISOString().split('T')[0]);
   };
 
   const searchedAnimal = useMemo(() => {
@@ -919,7 +921,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               <div className="p-10">
                 <div className="flex justify-between items-center mb-10">
                   <h3 className="text-3xl font-black text-slate-900 tracking-tight">Record Official Calving</h3>
-                  <button onClick={() => setIsCalvingModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400"><X size={32} /></button>
+                  <button onClick={closeCalvingModal} className="p-2 hover:bg-slate-100 rounded-full text-slate-400"><X size={32} /></button>
                 </div>
                 <form onSubmit={handleCalving} className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

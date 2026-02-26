@@ -214,11 +214,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       setCalvingPhoto(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCalvingPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      // Cleanup previous object URL
+      if (calvingPhotoPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(calvingPhotoPreview);
+      }
+      const objectUrl = URL.createObjectURL(file);
+      setCalvingPhotoPreview(objectUrl);
     }
   };
 
@@ -269,11 +270,18 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
 
     onUpdateBatch([newCalf, updatedMother]);
+    closeCalvingModal();
+  };
+
+  const closeCalvingModal = () => {
     setPendingCalvingAnimal(null);
     setCalfTag('');
     setCalvingDescription('');
     setCalvingDate(new Date().toISOString().split('T')[0]);
     setCalvingPhoto(null);
+    if (calvingPhotoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(calvingPhotoPreview);
+    }
     setCalvingPhotoPreview(null);
   };
 
@@ -642,7 +650,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <h3 className="text-3xl font-black text-slate-900 tracking-tight">Birth Record</h3>
                   <p className="text-slate-400 font-black text-[10px] uppercase tracking-widest mt-1">Mother Tag: #{pendingCalvingAnimal.tagNumber}</p>
                 </div>
-                <button onClick={() => setPendingCalvingAnimal(null)} className="p-3 bg-slate-100 text-slate-400 rounded-full hover:bg-slate-200"><X size={24} /></button>
+                <button onClick={closeCalvingModal} className="p-3 bg-slate-100 text-slate-400 rounded-full hover:bg-slate-200"><X size={24} /></button>
               </div>
               <form onSubmit={handleCalving} className="space-y-6">
                 <div className="grid grid-cols-2 gap-6">
