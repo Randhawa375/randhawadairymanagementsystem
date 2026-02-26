@@ -27,12 +27,15 @@ export const uploadImage = async (file: File): Promise<string | null> => {
         const filePath = `${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-            .from('images') // Assumes a bucket named 'images' exists
+            .from('images')
             .upload(filePath, fileToUpload);
 
         if (uploadError) {
-            console.error('Error uploading image:', uploadError);
-            throw new Error(uploadError.message);
+            console.error('Error uploading image to Supabase:', uploadError);
+            if (uploadError.message.includes('row-level security policy')) {
+                throw new Error('Upload failed: Permissions error (RLS). Please contact the administrator to verify storage bucket policies.');
+            }
+            throw new Error(`Upload failed: ${uploadError.message}`);
         }
 
         const { data } = supabase.storage
@@ -40,8 +43,8 @@ export const uploadImage = async (file: File): Promise<string | null> => {
             .getPublicUrl(filePath);
 
         return data.publicUrl;
-    } catch (error) {
-        console.error('Error in uploadImage:', error);
+    } catch (error: any) {
+        console.error('Error in uploadImage utility:', error);
         throw error;
     }
 };
