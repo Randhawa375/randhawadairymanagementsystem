@@ -177,7 +177,12 @@ const App: React.FC = () => {
       return [animal, ...prev];
     });
 
-    if (!currentUser) return;
+    if (!currentUser) {
+      const error = new Error("No active session. Please log in again. (صارف لاگ ان نہیں ہے)");
+      console.error(error.message);
+      // We don't alert here to avoid double alerts, but we throw so the caller knows it failed.
+      throw error;
+    }
 
     try {
       const cleanData = sanitizeAnimal(animal, currentUser.id);
@@ -186,8 +191,9 @@ const App: React.FC = () => {
         .upsert(cleanData, { onConflict: 'id' });
 
       if (error) throw error;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Individual Sync Error:', err);
+      window.alert(`Cloud Sync Failed: ${err.message || 'Unknown error'}`);
       fetchAnimals(currentUser.id);
       throw err; // Re-throw to allow caller to catch
     }
@@ -195,29 +201,23 @@ const App: React.FC = () => {
 
   // Sync a batch of animals
   const onSyncBatch = async (animalsBatch: Animal[]) => {
-    setAnimals(prev => {
-      let newState = [...prev];
-      animalsBatch.forEach(animal => {
-        const idx = newState.findIndex(a => a.id === animal.id);
-        if (idx !== -1) newState[idx] = animal;
-        else newState = [animal, ...newState];
-      });
-      return newState;
-    });
-
-    if (!currentUser) return;
+    if (!currentUser) {
+      console.error("No active session for batch sync.");
+      throw new Error("No active session. Please log in. (لاگ ان کریں)");
+    }
 
     try {
       const cleanBatch = animalsBatch.map(a => sanitizeAnimal(a, currentUser.id));
-      const { error } = await supabase
+      const { error: syncError } = await supabase
         .from('animals')
         .upsert(cleanBatch, { onConflict: 'id' });
 
-      if (error) throw error;
-    } catch (err) {
+      if (syncError) throw syncError;
+    } catch (err: any) {
       console.error('Batch Sync Error:', err);
+      window.alert(`Cloud Batch Sync Failed: ${err.message || 'Unknown error'}`);
       fetchAnimals(currentUser.id);
-      throw err; // Re-throw to allow caller to catch
+      throw err;
     }
   };
 

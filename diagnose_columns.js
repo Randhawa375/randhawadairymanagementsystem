@@ -11,7 +11,7 @@ async function diagnose() {
         'id', 'tagNumber', 'name', 'category', 'status', 'farm',
         'inseminationDate', 'semenName', 'expectedCalvingDate',
         'calvingDate', 'remarks', 'medications', 'lastUpdated',
-        'motherId', 'calvesIds', 'user_id'
+        'motherId', 'calvesIds', 'user_id', 'image', 'images'
     ];
 
     console.log('Checking columns one by one...');

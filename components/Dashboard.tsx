@@ -84,6 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [calfGender, setCalfGender] = useState<'male' | 'female'>('female');
   const [calfTag, setCalfTag] = useState('');
   const [isCalvingUploading, setIsCalvingUploading] = useState(false);
+  const [calvingStatus, setCalvingStatus] = useState('');
 
   const isFemaleBreeder = (a: Animal) =>
     a.category !== AnimalCategory.CALF_MALE &&
@@ -238,10 +239,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     try {
       let photoUrl = undefined;
       if (calvingPhoto) {
+        setCalvingStatus('Uploading Photo... (تصویر اپ لوڈ ہو رہی ہے)');
         console.log("Uploading calf photo...");
         photoUrl = await uploadImage(calvingPhoto);
       }
 
+      setCalvingStatus('Preparing Record... (ریکارڈ تیار ہو رہا ہے)');
       const now = new Date().toISOString();
       const newCalf: Animal = {
         id: helpers.generateId(),
@@ -279,8 +282,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         semen: pendingCalvingAnimal.semenName
       });
 
-      console.log("Database updated successfully");
+      setCalvingStatus('Saving to Cloud... (کلاؤڈ میں محفوظ ہو رہا ہے)');
+      console.log("Database upload starting via onUpdateBatch...");
       await onUpdateBatch([newCalf, updatedMother]);
+
+      setCalvingStatus('Success! (کامیابی)');
+      console.log("Database updated successfully");
       window.alert("Birth Record Saved Successfully! (بچھڑے کا ریکارڈ محفوظ کر لیا گیا ہے)");
       closeCalvingModal();
     } catch (error: any) {
@@ -288,6 +295,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       alert("Failed to save birth record: " + (error.message || "Unknown error"));
     } finally {
       setIsCalvingUploading(false);
+      setCalvingStatus('');
     }
   };
 
@@ -708,8 +716,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Notes</label>
                   <textarea rows={2} className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl font-bold" placeholder="Enter details..." value={calvingDescription} onChange={(e) => setCalvingDescription(e.target.value)} />
                 </div>
-                <button type="submit" disabled={isCalvingUploading} className="w-full py-5 bg-rose-600 text-white rounded-3xl font-black flex items-center justify-center gap-4 hover:bg-rose-700 shadow-xl text-xl transition-all disabled:opacity-70">
-                  <Save size={24} /> {isCalvingUploading ? 'Saving...' : 'Confirm Birth Record'}
+                <button type="submit" disabled={isCalvingUploading} className="w-full py-5 bg-rose-600 text-white rounded-3xl font-black flex flex-col items-center justify-center gap-1 hover:bg-rose-700 shadow-xl transition-all disabled:opacity-70">
+                  <div className="flex items-center gap-4 text-xl">
+                    <Save size={24} /> {isCalvingUploading ? 'Processing...' : 'Confirm Birth Record'}
+                  </div>
+                  {isCalvingUploading && calvingStatus && (
+                    <span className="text-[10px] font-bold text-rose-100 animate-pulse uppercase tracking-widest">{calvingStatus}</span>
+                  )}
                 </button>
               </form>
             </div>

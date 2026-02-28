@@ -60,6 +60,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
   const [calfImages, setCalfImages] = useState<string[]>([]);
   const [calfImageFiles, setCalfImageFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
 
   const handleCalfImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -334,8 +335,10 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       let failedUploads = 0;
       let lastError = '';
 
-      for (const file of calfImageFiles) {
+      for (let i = 0; i < calfImageFiles.length; i++) {
+        const file = calfImageFiles[i];
         try {
+          setUploadStatus(`Uploading Image ${i + 1}/${calfImageFiles.length}...`);
           const url = await uploadImage(file);
           uploadedImageUrls.push(url);
         } catch (err: any) {
@@ -345,6 +348,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
         }
       }
 
+      setUploadStatus('Preparing Record...');
       if (failedUploads > 0) {
         alert(`${failedUploads} image(s) failed to upload. Error: ${lastError}. The record will be saved with the successfully uploaded images.`);
       }
@@ -392,8 +396,12 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
         calfId: newCalf.id
       });
 
-      console.log("Database updated successfully");
+      setUploadStatus('Saving to Cloud...');
+      console.log("Database upload starting via onBatchSave...");
       await onBatchSave([newCalf, updatedMother]);
+
+      setUploadStatus('Success!');
+      console.log("Database updated successfully");
       window.alert("Birth Record Saved Successfully! (بچھڑے کا ریکارڈ محفوظ کر لیا گیا ہے)");
       closeCalvingModal();
     } catch (error: any) {
@@ -401,6 +409,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
       alert("Failed to save calving record: " + (error.message || "Unknown error"));
     } finally {
       setIsUploading(false);
+      setUploadStatus('');
     }
   };
 
@@ -980,8 +989,13 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                     />
                   </div>
 
-                  <button type="submit" disabled={isUploading} className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black flex items-center justify-center gap-5 hover:bg-blue-700 shadow-2xl text-2xl transition-all disabled:opacity-70">
-                    <Save size={32} /> {isUploading ? 'Uploading & Saving...' : 'Confirm Birth Record'}
+                  <button type="submit" disabled={isUploading} className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black flex flex-col items-center justify-center gap-1 hover:bg-blue-700 shadow-2xl transition-all disabled:opacity-70">
+                    <div className="flex items-center gap-5 text-2xl">
+                      <Save size={32} /> {isUploading ? 'Processing...' : 'Confirm Birth Record'}
+                    </div>
+                    {isUploading && uploadStatus && (
+                      <span className="text-[10px] font-bold text-blue-100 animate-pulse uppercase tracking-widest">{uploadStatus}</span>
+                    )}
                   </button>
                 </form>
               </div>
