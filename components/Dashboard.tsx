@@ -83,55 +83,61 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [calvingDescription, setCalvingDescription] = useState('');
   const [calfGender, setCalfGender] = useState<'male' | 'female'>('female');
   const [calfTag, setCalfTag] = useState('');
+  const [isCalvingUploading, setIsCalvingUploading] = useState(false);
 
   const isFemaleBreeder = (a: Animal) =>
     a.category !== AnimalCategory.CALF_MALE &&
     a.category !== AnimalCategory.CATTLE;
 
-  const activeAnimals = animals.filter(a => a.status !== ReproductiveStatus.SOLD); // Filter active for stats
+  const activeAnimals = React.useMemo(() =>
+    animals.filter(a => a.status !== ReproductiveStatus.SOLD),
+    [animals]
+  );
 
-  const total = activeAnimals.length;
-  const newlyCalvedCount = activeAnimals.filter(a => a.status === ReproductiveStatus.NEWLY_CALVED && isFemaleBreeder(a)).length;
-  const pregnantCount = activeAnimals.filter(a => a.status === ReproductiveStatus.PREGNANT && isFemaleBreeder(a)).length;
-  const inseminatedCount = activeAnimals.filter(a => a.status === ReproductiveStatus.INSEMINATED && isFemaleBreeder(a)).length;
-  const dryCount = activeAnimals.filter(a => a.status === ReproductiveStatus.DRY && isFemaleBreeder(a)).length;
-  const openCount = activeAnimals.filter(a => a.status === ReproductiveStatus.OPEN && isFemaleBreeder(a)).length;
-  const childStatusCount = activeAnimals.filter(a => a.status === ReproductiveStatus.CHILD && isFemaleBreeder(a)).length;
+  const stats = React.useMemo(() => {
+    const newlyCalved = activeAnimals.filter(a => a.status === ReproductiveStatus.NEWLY_CALVED && isFemaleBreeder(a)).length;
+    const pregnant = activeAnimals.filter(a => a.status === ReproductiveStatus.PREGNANT && isFemaleBreeder(a)).length;
+    const inseminated = activeAnimals.filter(a => a.status === ReproductiveStatus.INSEMINATED && isFemaleBreeder(a)).length;
+    const dry = activeAnimals.filter(a => a.status === ReproductiveStatus.DRY && isFemaleBreeder(a)).length;
+    const open = activeAnimals.filter(a => a.status === ReproductiveStatus.OPEN && isFemaleBreeder(a)).length;
+    const child = activeAnimals.filter(a => a.status === ReproductiveStatus.CHILD && isFemaleBreeder(a)).length;
 
-  const totalHeiferCount = activeAnimals.filter(a => a.category === AnimalCategory.HEIFER).length;
-  const cattleCount = activeAnimals.filter(a => a.category === AnimalCategory.CATTLE).length;
-  const calfCount = activeAnimals.filter(a => a.category === AnimalCategory.CALF).length;
-  const maleCalfCount = activeAnimals.filter(a => a.category === AnimalCategory.CALF_MALE).length;
+    const heifer = activeAnimals.filter(a => a.category === AnimalCategory.HEIFER).length;
+    const cattle = activeAnimals.filter(a => a.category === AnimalCategory.CATTLE).length;
+    const calf = activeAnimals.filter(a => a.category === AnimalCategory.CALF).length;
+    const maleCalf = activeAnimals.filter(a => a.category === AnimalCategory.CALF_MALE).length;
 
-  const animalsDueForCheck = activeAnimals.filter(a => {
+    return {
+      total: activeAnimals.length,
+      newlyCalved, pregnant, inseminated, dry, open, child,
+      heifer, cattle, calf, maleCalf
+    };
+  }, [activeAnimals]);
+
+  const animalsDueForCheck = React.useMemo(() => activeAnimals.filter(a => {
     if (a.status !== ReproductiveStatus.INSEMINATED || !a.inseminationDate) return false;
     const days = helpers.getDaysToPregnancyCheck(a.inseminationDate, a.category);
     return days !== null && days <= 0;
-  });
+  }), [activeAnimals]);
 
-  const animalsReadyForCalving = activeAnimals.filter(a => {
+  const animalsReadyForCalving = React.useMemo(() => activeAnimals.filter(a => {
     if ((a.status !== ReproductiveStatus.PREGNANT && a.status !== ReproductiveStatus.DRY) || !a.expectedCalvingDate) return false;
     const days = helpers.getDaysToCalving(a.expectedCalvingDate);
     return days !== null && days <= 10;
-  });
+  }), [activeAnimals]);
 
-  const animalsDueForDry = activeAnimals.filter(a => {
+  const animalsDueForDry = React.useMemo(() => activeAnimals.filter(a => {
     if (a.status !== ReproductiveStatus.PREGNANT || !a.inseminationDate) return false;
     const daysGestation = helpers.getGestationDays(a.inseminationDate);
     return daysGestation !== null && daysGestation >= 225;
-  });
+  }), [activeAnimals]);
 
-  const animalsReadyForInsemination = activeAnimals.filter(a => {
-    // Check if animal is eligible for heat (Newly Calved or Open)
+  const animalsReadyForInsemination = React.useMemo(() => activeAnimals.filter(a => {
     if (a.status !== ReproductiveStatus.NEWLY_CALVED && a.status !== ReproductiveStatus.OPEN) return false;
-    // Must have a calving date or be in Open status (which implies previous calving or failed insemination)
-    // However, the rule is strictly "45 days after entry" which usually implies calving date for existing cows.
     if (!a.calvingDate) return false;
-
     const days = helpers.getDaysSinceCalving(a.calvingDate);
-    // Alert if 45 days or more have passed
     return days !== null && days >= 45;
-  });
+  }), [activeAnimals]);
 
   const searchedAnimal = React.useMemo(() => {
     if (searchQuery.length < 1) return null;
@@ -225,52 +231,64 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleCalving = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pendingCalvingAnimal || !calfTag) return;
+    if (!pendingCalvingAnimal || !calfTag || isCalvingUploading) return;
+    setIsCalvingUploading(true);
+    console.log("Submit button clicked, starting calving process...");
 
-    let photoUrl = undefined;
-    if (calvingPhoto) {
-      photoUrl = await uploadImage(calvingPhoto);
-    }
+    try {
+      let photoUrl = undefined;
+      if (calvingPhoto) {
+        console.log("Uploading calf photo...");
+        photoUrl = await uploadImage(calvingPhoto);
+      }
 
-    const now = new Date().toISOString();
-    const newCalf: Animal = {
-      id: helpers.generateId(),
-      tagNumber: calfTag,
-      category: calfGender === 'male' ? AnimalCategory.CALF_MALE : AnimalCategory.CALF,
-      status: ReproductiveStatus.CHILD,
-      farm: pendingCalvingAnimal.farm,
-      motherId: pendingCalvingAnimal.id,
-      image: photoUrl || undefined, // Add uploaded photo
-      history: [{
+      const now = new Date().toISOString();
+      const newCalf: Animal = {
         id: helpers.generateId(),
-        type: 'GENERAL',
+        tagNumber: calfTag,
+        category: calfGender === 'male' ? AnimalCategory.CALF_MALE : AnimalCategory.CALF,
+        status: ReproductiveStatus.CHILD,
+        farm: pendingCalvingAnimal.farm,
+        motherId: pendingCalvingAnimal.id,
+        image: photoUrl || undefined,
+        history: [{
+          id: helpers.generateId(),
+          type: 'GENERAL',
+          date: calvingDate,
+          details: `Born to Mother Tag: ${pendingCalvingAnimal.tagNumber}`
+        }],
+        lastUpdated: now
+      };
+
+      let updatedMother: Animal = {
+        ...pendingCalvingAnimal,
+        status: ReproductiveStatus.NEWLY_CALVED,
+        calvingDate: calvingDate,
+        expectedCalvingDate: undefined,
+        inseminationDate: undefined,
+        calvesIds: [...(pendingCalvingAnimal.calvesIds || []), newCalf.id],
+        lastUpdated: now
+      };
+
+      updatedMother = addHistoryEvent(updatedMother, {
+        type: 'CALVING',
         date: calvingDate,
-        details: `Born to Mother Tag: ${pendingCalvingAnimal.tagNumber}`
-      }],
-      lastUpdated: now
-    };
+        details: `Official Calving Recorded: Produced ${calfGender === 'male' ? 'Male Calf' : 'Female Calf'} (Tag: ${calfTag})`,
+        remarks: calvingDescription,
+        calfId: newCalf.id,
+        semen: pendingCalvingAnimal.semenName
+      });
 
-    let updatedMother: Animal = {
-      ...pendingCalvingAnimal,
-      status: ReproductiveStatus.NEWLY_CALVED,
-      calvingDate: calvingDate,
-      expectedCalvingDate: undefined,
-      inseminationDate: undefined,
-      calvesIds: [...(pendingCalvingAnimal.calvesIds || []), newCalf.id],
-      lastUpdated: now
-    };
-
-    updatedMother = addHistoryEvent(updatedMother, {
-      type: 'CALVING',
-      date: calvingDate,
-      details: `Official Calving Recorded: Produced ${calfGender === 'male' ? 'Male Calf' : 'Female Calf'} (Tag: ${calfTag})`,
-      remarks: calvingDescription,
-      calfId: newCalf.id,
-      semen: pendingCalvingAnimal.semenName // Store the semen name used for this pregnancy
-    });
-
-    onUpdateBatch([newCalf, updatedMother]);
-    closeCalvingModal();
+      console.log("Database updated successfully");
+      await onUpdateBatch([newCalf, updatedMother]);
+      window.alert("Birth Record Saved Successfully! (بچھڑے کا ریکارڈ محفوظ کر لیا گیا ہے)");
+      closeCalvingModal();
+    } catch (error: any) {
+      console.error("Error in handleCalving:", error);
+      alert("Failed to save birth record: " + (error.message || "Unknown error"));
+    } finally {
+      setIsCalvingUploading(false);
+    }
   };
 
   const closeCalvingModal = () => {
@@ -283,6 +301,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       URL.revokeObjectURL(calvingPhotoPreview);
     }
     setCalvingPhotoPreview(null);
+    setIsCalvingUploading(false);
   };
 
 
@@ -329,13 +348,13 @@ const Dashboard: React.FC<DashboardProps> = ({
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Breeding & Management Status (جانوروں کی حالت)</h3>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4">
-          <StatCard label="Total Animals" subLabel="(کل جانور)" value={total} icon={<Users size={20} />} color="indigo" />
-          <StatCard label="Newly Calved" subLabel="(تازہ سوئی)" value={newlyCalvedCount} icon={<Sparkles size={20} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.NEWLY_CALVED)} />
-          <StatCard label="Pregnant" subLabel="(گابھن)" value={pregnantCount} icon={<ShieldCheck size={20} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.PREGNANT)} />
-          <StatCard label="Inseminated" subLabel="(ٹیکہ شدہ)" value={inseminatedCount} icon={<Activity size={20} />} color="amber" onClick={() => onNavigateToReport(ReproductiveStatus.INSEMINATED)} />
-          <StatCard label="Dry" subLabel="(خشک جانور)" value={dryCount} icon={<Wind size={20} />} color="blue" onClick={() => onNavigateToReport(ReproductiveStatus.DRY)} />
-          <StatCard label="Open" subLabel="(خالی جانور)" value={openCount} icon={<RotateCcw size={20} />} color="rose" onClick={() => onNavigateToReport(ReproductiveStatus.OPEN)} />
-          <StatCard label="Child Status" subLabel="(بچہ حالت)" value={childStatusCount} icon={<Baby size={20} />} color="rose" onClick={() => onNavigateToReport(ReproductiveStatus.CHILD)} />
+          <StatCard label="Total Animals" subLabel="(کل جانور)" value={stats.total} icon={<Users size={20} />} color="indigo" />
+          <StatCard label="Newly Calved" subLabel="(تازہ سوئی)" value={stats.newlyCalved} icon={<Sparkles size={20} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.NEWLY_CALVED)} />
+          <StatCard label="Pregnant" subLabel="(گابھن)" value={stats.pregnant} icon={<ShieldCheck size={20} />} color="emerald" onClick={() => onNavigateToReport(ReproductiveStatus.PREGNANT)} />
+          <StatCard label="Inseminated" subLabel="(ٹیکہ شدہ)" value={stats.inseminated} icon={<Activity size={20} />} color="amber" onClick={() => onNavigateToReport(ReproductiveStatus.INSEMINATED)} />
+          <StatCard label="Dry" subLabel="(خشک جانور)" value={stats.dry} icon={<Wind size={20} />} color="blue" onClick={() => onNavigateToReport(ReproductiveStatus.DRY)} />
+          <StatCard label="Open" subLabel="(خالی جانور)" value={stats.open} icon={<RotateCcw size={20} />} color="rose" onClick={() => onNavigateToReport(ReproductiveStatus.OPEN)} />
+          <StatCard label="Child Status" subLabel="(بچہ حالت)" value={stats.child} icon={<Baby size={20} />} color="rose" onClick={() => onNavigateToReport(ReproductiveStatus.CHILD)} />
         </div>
 
         <div className="flex items-center gap-2 px-2 pt-4">
@@ -343,10 +362,10 @@ const Dashboard: React.FC<DashboardProps> = ({
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Herd Inventory Categories (جانوروں کی اقسام)</h3>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-          <StatCard label="Heifers" subLabel="(بچھڑیاں)" value={totalHeiferCount} icon={<Activity size={20} />} color="indigo" />
-          <StatCard label="Cattle" subLabel="(بیل/گائے)" value={cattleCount} icon={<Beef size={20} />} color="blue" />
-          <StatCard label="Female Calf" subLabel="(بچھیا)" value={calfCount} icon={<Baby size={20} />} color="rose" />
-          <StatCard label="Male Calf" subLabel="(بچھڑا)" value={maleCalfCount} icon={<Baby size={20} />} color="slate" />
+          <StatCard label="Heifers" subLabel="(بچھڑیاں)" value={stats.heifer} icon={<Activity size={20} />} color="indigo" />
+          <StatCard label="Cattle" subLabel="(بیل/گائے)" value={stats.cattle} icon={<Beef size={20} />} color="blue" />
+          <StatCard label="Female Calf" subLabel="(بچھیا)" value={stats.calf} icon={<Baby size={20} />} color="rose" />
+          <StatCard label="Male Calf" subLabel="(بچھڑا)" value={stats.maleCalf} icon={<Baby size={20} />} color="slate" />
         </div>
       </div>
 
@@ -689,7 +708,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Notes</label>
                   <textarea rows={2} className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl font-bold" placeholder="Enter details..." value={calvingDescription} onChange={(e) => setCalvingDescription(e.target.value)} />
                 </div>
-                <button type="submit" className="w-full py-5 bg-rose-600 text-white rounded-3xl font-black flex items-center justify-center gap-4 hover:bg-rose-700 shadow-xl text-xl transition-all"><Save size={24} /> Confirm Birth Record</button>
+                <button type="submit" disabled={isCalvingUploading} className="w-full py-5 bg-rose-600 text-white rounded-3xl font-black flex items-center justify-center gap-4 hover:bg-rose-700 shadow-xl text-xl transition-all disabled:opacity-70">
+                  <Save size={24} /> {isCalvingUploading ? 'Saving...' : 'Confirm Birth Record'}
+                </button>
               </form>
             </div>
           </div>

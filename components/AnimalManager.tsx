@@ -325,8 +325,9 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
 
   const handleCalving = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!calvingMother || !calfTag) return;
+    if (!calvingMother || !calfTag || isUploading) return;
     setIsUploading(true);
+    console.log("Submit button clicked, starting calving process...");
 
     try {
       const uploadedImageUrls: string[] = [];
@@ -391,7 +392,9 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
         calfId: newCalf.id
       });
 
+      console.log("Database updated successfully");
       await onBatchSave([newCalf, updatedMother]);
+      window.alert("Birth Record Saved Successfully! (بچھڑے کا ریکارڈ محفوظ کر لیا گیا ہے)");
       closeCalvingModal();
     } catch (error: any) {
       console.error("Error in calving submission:", error);

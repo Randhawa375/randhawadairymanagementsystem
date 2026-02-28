@@ -59,7 +59,7 @@ export const formatDate = (dateString: string) => {
   return format(date, 'dd/MM/yyyy');
 };
 
-export const generateId = () => Math.random().toString(36).substring(2, 9);
+export const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
 
 import { Animal, ReproductiveStatus } from '../types';
 
