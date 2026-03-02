@@ -7,13 +7,15 @@ import {
   Download,
   LogOut,
   Milk,
-  Loader2
+  Loader2,
+  Microscope
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Dashboard from './components/Dashboard';
 import AnimalManager from './components/AnimalManager';
 import ReportsManager from './components/ReportsManager';
+import SemenResults from './components/SemenResults';
 import Auth from './components/Auth';
 import { Animal, FarmLocation, AnimalCategory, ReproductiveStatus, User } from './types';
 import { formatDate } from './utils/helpers';
@@ -21,7 +23,7 @@ import { supabase } from './lib/supabase';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [view, setView] = useState<'dashboard' | 'list' | 'reports'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'list' | 'reports' | 'semen_results'>('dashboard');
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [activeFarm, setActiveFarm] = useState<FarmLocation | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -451,6 +453,7 @@ const App: React.FC = () => {
           ) : (
             <NavItem active={view === 'reports'} onClick={() => setView('reports')} icon={<FileText size={18} />} label="Summary Reports" />
           )}
+          <NavItem active={view === 'semen_results'} onClick={() => setView('semen_results')} icon={<Microscope size={18} />} label="Semen Results" />
         </div>
       </nav>
 
@@ -488,6 +491,12 @@ const App: React.FC = () => {
             animals={animals}
             initialStatus={reportFilter.status}
             onDownload={(data, title) => handleDownloadPDF(data, title)}
+          />
+        )}
+        {view === 'semen_results' && (
+          <SemenResults
+            allAnimals={animals}
+            onLoadDetails={fetchAnimalDetails}
           />
         )}
 
