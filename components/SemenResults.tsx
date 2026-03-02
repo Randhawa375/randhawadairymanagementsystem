@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
-import { Baby, Calendar, User, Syringe, Image as ImageIcon, Search, Microscope } from 'lucide-react';
-import { Animal, HistoryEvent } from '../types';
+import { Baby, Calendar, User, Syringe, Image as ImageIcon, Search, Microscope, CheckCircle2, Timer, AlertCircle } from 'lucide-react';
+import { Animal, ReproductiveStatus } from '../types';
 import { formatDate } from '../utils/helpers';
 import ImageModal from './ImageModal';
 
@@ -10,14 +10,19 @@ interface SemenResultsProps {
     onLoadDetails: (id: string) => void;
 }
 
+type ResultStatus = 'CALVED' | 'PREGNANT' | 'INSEMINATED' | 'FAILED';
+
 interface SemenResult {
-    calfTag: string;
-    calfGender: string;
+    id: string; // for key
+    type: ResultStatus;
+    calfTag?: string;
+    calfGender?: string;
     motherTag: string;
+    motherId: string;
     semenName: string;
     date: string;
     imageUrl?: string;
-    originalAnimal: Animal;
+    details?: string;
 }
 
 const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }) => {
@@ -26,177 +31,256 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
 
     const results = useMemo(() => {
         const items: SemenResult[] = [];
+        const processedCalfIds = new Set<string>();
 
         allAnimals.forEach(animal => {
-            // Find CALVING events in history
+            // 1. Process History Events for Mothers (Primary Source)
             if (animal.history) {
                 animal.history.forEach(event => {
+                    // --- CALVING EVENTS ---
                     if (event.type === 'CALVING') {
-                        // Extract info from calving event details or remarks
-                        // Example details: "Official Calving Recorded: Produced Female Calf (Tag: C101).\nCycle Info: Semen Bull-A used on 01/01/2024."
-
-                        // Try to find the calf if calfId is present
                         let calf: Animal | undefined;
                         if (event.calfId) {
                             calf = allAnimals.find(a => a.id === event.calfId);
+                            if (calf) processedCalfIds.add(calf.id);
                         }
 
-                        // If calf not found by ID (maybe not loaded yet), try searching by tag if we can extract it
-                        // For now, let's rely on what we can gather
+                        // Robust Tag Extraction
+                        const calfTagMatch = event.details.match(/Tag: ([^)\n\r]+)/) || event.details.match(/Tag\(s\): ([^)\n\r]+)/);
+                        const calfTag = calf?.tagNumber || (calfTagMatch ? calfTagMatch[1].trim() : 'Unknown');
 
-                        const calfTagMatch = event.details.match(/Tag: ([^)]+)/);
-                        const calfTag = calf?.tagNumber || (calfTagMatch ? calfTagMatch[1] : 'Unknown');
-
+                        // Robust Gender Extraction
                         const genderMatch = event.details.match(/Produced (Male Calf|Female Calf)/);
                         const gender = calf?.category || (genderMatch ? genderMatch[1] : 'Unknown');
 
-                        const semenMatch = event.details.match(/Semen ([^ ]+) used/);
-                        const semen = semenMatch ? semenMatch[1] : (event.semen || 'Not Recorded');
+                        // Robust Semen Extraction
+                        const semenMatch = event.details.match(/Semen ([^ ]+) used/) || event.details.match(/with ([^ ]+) on/);
+                        const semen = event.semen || (semenMatch ? semenMatch[1] : 'Not Recorded');
 
                         items.push({
-                            calfTag: calfTag,
+                            id: event.id,
+                            type: 'CALVED',
+                            calfTag,
                             calfGender: gender,
                             motherTag: animal.tagNumber,
+                            motherId: animal.id,
                             semenName: semen,
                             date: event.date,
-                            imageUrl: calf?.image,
-                            originalAnimal: animal // Mother
+                            imageUrl: calf?.image || (calf?.images && calf.images[0]) || animal.image,
+                            details: event.details
+                        });
+                    }
+
+                    // --- PREGNANCY RECORDS (Historical or Current) ---
+                    if (event.type === 'PREGNANCY_CHECK' && event.result === 'Positive') {
+                        items.push({
+                            id: event.id,
+                            type: 'PREGNANT',
+                            motherTag: animal.tagNumber,
+                            motherId: animal.id,
+                            semenName: event.semen || 'Recorded Semen',
+                            date: event.date,
+                            imageUrl: animal.image,
+                            details: `Confirmed Pregnant. ${event.details}`
+                        });
+                    }
+
+                    // --- INSEMINATION RECORDS (Active/Historical) ---
+                    if (event.type === 'INSEMINATION') {
+                        // Only add if not already covered by a later pregnancy check or calving for this "cycle"
+                        // To keep it simple, we show all major insemination attempts
+                        items.push({
+                            id: event.id,
+                            type: 'INSEMINATED',
+                            motherTag: animal.tagNumber,
+                            motherId: animal.id,
+                            semenName: event.semen || 'Active Straw',
+                            date: event.date,
+                            imageUrl: animal.image,
+                            details: event.details
                         });
                     }
                 });
             }
 
-            // Also look at Calves directly to see if they have semen info in their birth history
-            if (animal.category === 'Male Calf' || animal.category === 'Female Calf') {
+            // 2. Process Calves directly (Backup source for orphans or manually added calves)
+            if ((animal.category === 'Male Calf' || animal.category === 'Female Calf') && !processedCalfIds.has(animal.id)) {
                 const birthEvent = animal.history?.find(h => h.details.includes('Born to Mother'));
-                if (birthEvent && !items.find(i => i.calfTag === animal.tagNumber)) {
+                if (birthEvent) {
                     const motherTagMatch = birthEvent.details.match(/Mother Tag: ([^ ]+)/);
                     const motherTag = motherTagMatch ? motherTagMatch[1] : 'Unknown';
 
                     items.push({
+                        id: animal.id,
+                        type: 'CALVED',
                         calfTag: animal.tagNumber,
                         calfGender: animal.category,
                         motherTag: motherTag,
+                        motherId: animal.motherId || '',
                         semenName: birthEvent.semen || 'Unknown',
                         date: birthEvent.date,
-                        imageUrl: animal.image,
-                        originalAnimal: animal
+                        imageUrl: animal.image || (animal.images && animal.images[0]),
+                        details: birthEvent.details
                     });
                 }
             }
         });
 
-        // Sort by date descending
-        return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        // Filtering to avoid duplicates on the same day for same animal (e.g. redundant logs)
+        const uniqueMap = new Map<string, SemenResult>();
+        items.forEach(item => {
+            const key = `${item.motherTag}-${item.date.split('T')[0]}-${item.type}`;
+            if (!uniqueMap.has(key) || item.type === 'CALVED') {
+                uniqueMap.set(key, item);
+            }
+        });
+
+        return Array.from(uniqueMap.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [allAnimals]);
 
     const filteredResults = results.filter(r =>
-        r.calfTag.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.calfTag?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.motherTag.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.semenName.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    const getStatusBadge = (type: ResultStatus) => {
+        switch (type) {
+            case 'CALVED':
+                return (
+                    <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                        <CheckCircle2 size={12} /> Success: Calved
+                    </span>
+                );
+            case 'PREGNANT':
+                return (
+                    <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100">
+                        <Timer size={12} /> Confirmed: Pregnant
+                    </span>
+                );
+            case 'INSEMINATED':
+                return (
+                    <span className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-100">
+                        <AlertCircle size={12} /> Pending: Inseminated
+                    </span>
+                );
+            default:
+                return null;
+        }
+    };
+
     return (
         <div className="space-y-6 max-w-6xl mx-auto pb-12">
             {/* Header Section */}
-            <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-8 opacity-10">
-                    <Microscope size={120} className="text-indigo-900" />
+            <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm overflow-hidden relative group">
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
+                    <Microscope size={160} className="text-indigo-900" />
                 </div>
                 <div className="relative z-10">
-                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">Semen Results Ledger</h2>
-                    <p className="text-slate-500 font-bold mt-2 uppercase tracking-widest text-xs flex items-center gap-2">
-                        <Microscope size={14} className="text-indigo-600" />
-                        Comprehensive Calving & Breeding Success Track
+                    <div className="flex items-center gap-4 mb-2">
+                        <div className="bg-indigo-900 p-3 rounded-2xl shadow-lg">
+                            <Microscope size={24} className="text-white" />
+                        </div>
+                        <h2 className="text-4xl font-black text-slate-900 tracking-tight">Semen Results Ledger</h2>
+                    </div>
+                    <p className="text-slate-500 font-bold uppercase tracking-widest text-[11px] ml-16">
+                        Visual tracking of breeding success and calving outcomes
                     </p>
 
-                    <div className="mt-8 flex flex-col md:flex-row gap-4">
+                    <div className="mt-10 flex flex-col md:flex-row gap-4">
                         <div className="relative flex-1">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={22} />
                             <input
                                 type="text"
-                                placeholder="Search by Calf, Mother or Semen..."
-                                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-600 focus:bg-white transition-all font-bold text-slate-900"
+                                placeholder="Search by Calf, Mother or Semen Tag..."
+                                className="w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] outline-none focus:border-indigo-600 focus:bg-white transition-all font-bold text-slate-900 shadow-inner"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
-                        <div className="bg-indigo-50 px-6 py-4 rounded-2xl flex items-center gap-4 border border-indigo-100">
-                            <div className="bg-white p-2 rounded-xl shadow-sm">
-                                <Baby size={24} className="text-indigo-600" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Total Success</p>
-                                <p className="text-2xl font-black text-indigo-900">{results.length}</p>
-                            </div>
+                        <div className="flex gap-4">
+                            <StatBox label="Total Recorded" value={results.length} color="indigo" icon={<Microscope size={20} />} />
+                            <StatBox label="Successful Births" value={results.filter(r => r.type === 'CALVED').length} color="emerald" icon={<Baby size={20} />} />
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Grid View */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredResults.map((result, idx) => (
-                    <div key={idx} className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden hover:shadow-xl transition-all group flex flex-col h-full">
-                        {/* Image Placeholder or Actual Image */}
-                        <div className="h-56 bg-slate-100 relative overflow-hidden flex items-center justify-center cursor-pointer"
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredResults.map((result) => (
+                    <div key={result.id} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden hover:shadow-2xl transition-all duration-300 group flex flex-col h-full border-b-[6px] hover:border-b-indigo-500">
+                        {/* Image Preview */}
+                        <div className="h-64 bg-slate-100 relative overflow-hidden flex items-center justify-center cursor-pointer group-hover:brightness-110 transition-all"
                             onClick={() => result.imageUrl && setFullScreenImage(result.imageUrl)}>
                             {result.imageUrl ? (
-                                <img src={result.imageUrl} alt="Calf" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                <img src={result.imageUrl} alt="Record" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                             ) : (
-                                <div className="flex flex-col items-center gap-2 text-slate-300">
-                                    <ImageIcon size={48} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">No Image Uploaded</span>
+                                <div className="flex flex-col items-center gap-3 text-slate-300">
+                                    <div className="p-6 bg-white rounded-full shadow-sm">
+                                        <ImageIcon size={48} />
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest">No Image Available</span>
                                 </div>
                             )}
-                            <div className="absolute top-4 right-4">
-                                <span className="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-black text-slate-900 shadow-sm border border-white/20 uppercase tracking-widest">
+
+                            {/* Type Badge Floating */}
+                            <div className="absolute top-5 left-5">
+                                {getStatusBadge(result.type)}
+                            </div>
+
+                            <div className="absolute bottom-5 right-5">
+                                <span className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl text-[11px] font-black text-slate-900 shadow-xl border border-white/20 uppercase tracking-widest">
                                     {formatDate(result.date)}
                                 </span>
                             </div>
                         </div>
 
-                        <div className="p-6 flex-1 flex flex-col">
-                            <div className="flex justify-between items-start mb-6">
+                        <div className="p-8 flex-1 flex flex-col">
+                            <div className="flex justify-between items-start mb-8">
                                 <div>
-                                    <h3 className="text-2xl font-black text-slate-900 leading-tight">Calf #{result.calfTag}</h3>
-                                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-1">{result.calfGender}</p>
+                                    <h3 className="text-3xl font-black text-slate-900 tracking-tighter">
+                                        {result.type === 'CALVED' ? `Calf #${result.calfTag}` : `Mother #${result.motherTag}`}
+                                    </h3>
+                                    <p className="text-[11px] font-black text-indigo-500 uppercase tracking-widest mt-1">
+                                        {result.type === 'CALVED' ? result.calfGender : 'Pregnancy/Breeding Case'}
+                                    </p>
                                 </div>
-                                <div className="bg-slate-900 text-white p-2.5 rounded-xl">
-                                    <Baby size={20} />
+                                <div className={`p-3.5 rounded-2xl shadow-lg ${result.type === 'CALVED' ? 'bg-emerald-900 text-white' : 'bg-slate-900 text-white'}`}>
+                                    {result.type === 'CALVED' ? <Baby size={24} /> : <Syringe size={24} />}
                                 </div>
                             </div>
 
                             <div className="space-y-4 flex-1">
-                                <div className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                                    <div className="bg-white p-2 rounded-lg shadow-sm">
-                                        <User size={16} className="text-slate-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mother Tag</p>
-                                        <p className="font-black text-slate-900">#{result.motherTag}</p>
-                                    </div>
-                                </div>
+                                <InfoRow
+                                    label="Mother Tag"
+                                    value={`#${result.motherTag}`}
+                                    icon={<User size={18} />}
+                                    color="slate"
+                                />
 
-                                <div className="flex items-center gap-4 p-3 rounded-2xl bg-amber-50 border border-amber-100">
-                                    <div className="bg-white p-2 rounded-lg shadow-sm">
-                                        <Syringe size={16} className="text-amber-600" />
+                                <InfoRow
+                                    label="Semen Straw"
+                                    value={result.semenName}
+                                    icon={<Syringe size={18} />}
+                                    color="amber"
+                                />
+
+                                {result.details && (
+                                    <div className="mt-6 pt-6 border-t border-slate-100">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Technical Note</p>
+                                        <p className="text-xs text-slate-600 font-medium leading-relaxed italic bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                            "{result.details.length > 100 ? result.details.substring(0, 100) + '...' : result.details}"
+                                        </p>
                                     </div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Semen Used</p>
-                                        <p className="font-black text-amber-900">{result.semenName}</p>
-                                    </div>
-                                </div>
+                                )}
                             </div>
 
                             <button
-                                onClick={() => {
-                                    // Logic to find and view original animal details if needed
-                                    // Currently just showing history for the mother or calf
-                                }}
-                                className="w-full mt-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                                onClick={() => onLoadDetails(result.motherId)}
+                                className="w-full mt-8 py-4 bg-slate-900 hover:bg-black text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg flex items-center justify-center gap-3 active:scale-95"
                             >
-                                <Calendar size={14} /> Full Record Detail
+                                <Calendar size={16} /> View History Ledger
                             </button>
                         </div>
                     </div>
@@ -204,12 +288,12 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
             </div>
 
             {filteredResults.length === 0 && (
-                <div className="bg-white rounded-3xl p-20 text-center border-2 border-dashed border-slate-200">
-                    <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Microscope size={32} className="text-slate-300" />
+                <div className="bg-white rounded-[3rem] p-24 text-center border-4 border-dashed border-slate-100">
+                    <div className="bg-slate-50 w-28 h-28 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+                        <Microscope size={48} className="text-slate-200" />
                     </div>
-                    <h3 className="text-2xl font-black text-slate-900">No Semen Results Found</h3>
-                    <p className="text-slate-500 font-bold mt-2">Adjust your search or record new calving events to see results here.</p>
+                    <h3 className="text-3xl font-black text-slate-900">No Records Match Your Search</h3>
+                    <p className="text-slate-400 font-bold mt-3 text-lg">We couldn't find any results. Try searching for a different tag or straw name.</p>
                 </div>
             )}
 
@@ -217,5 +301,29 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
         </div>
     );
 };
+
+const StatBox = ({ label, value, color, icon }: any) => (
+    <div className={`bg-${color}-50 px-6 py-4 rounded-[1.5rem] flex items-center gap-5 border border-${color}-100 shadow-sm`}>
+        <div className="bg-white p-3 rounded-2xl shadow-sm text-indigo-600">
+            {icon}
+        </div>
+        <div>
+            <p className={`text-[10px] font-black text-${color}-400 uppercase tracking-widest`}>{label}</p>
+            <p className={`text-2xl font-black text-${color}-900`}>{value}</p>
+        </div>
+    </div>
+);
+
+const InfoRow = ({ label, value, icon, color }: any) => (
+    <div className={`flex items-center gap-4 p-4 rounded-2xl bg-${color}-50 border border-${color}-100 transition-colors`}>
+        <div className="bg-white p-2.5 rounded-xl shadow-sm">
+            <span className={`text-${color}-500`}>{icon}</span>
+        </div>
+        <div className="min-w-0">
+            <p className={`text-[10px] font-black text-${color}-400 uppercase tracking-widest`}>{label}</p>
+            <p className={`font-black text-${color}-900 truncate`}>{value}</p>
+        </div>
+    </div>
+);
 
 export default SemenResults;
