@@ -37,7 +37,7 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
             // 1. Process History Events for Mothers (Primary Source)
             if (animal.history) {
                 animal.history.forEach(event => {
-                    // --- CALVING EVENTS ---
+                    // --- CALVING EVENTS (The actual Results) ---
                     if (event.type === 'CALVING') {
                         let calf: Animal | undefined;
                         if (event.calfId) {
@@ -46,12 +46,12 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
                         }
 
                         // Robust Tag Extraction
-                        const calfTagMatch = event.details.match(/Tag: ([^)\n\r]+)/) || event.details.match(/Tag\(s\): ([^)\n\r]+)/);
+                        const calfTagMatch = event.details.match(/Tag: ([^)\n\r ]+)/) || event.details.match(/Tag\(s\): ([^)\n\r ]+)/);
                         const calfTag = calf?.tagNumber || (calfTagMatch ? calfTagMatch[1].trim() : 'Unknown');
 
                         // Robust Gender Extraction
                         const genderMatch = event.details.match(/Produced (Male Calf|Female Calf)/);
-                        const gender = calf?.category || (genderMatch ? genderMatch[1] : 'Unknown');
+                        const gender = calf?.category || (genderMatch ? genderMatch[1] : 'Birth Record');
 
                         // Robust Semen Extraction
                         const semenMatch = event.details.match(/Semen ([^ ]+) used/) || event.details.match(/with ([^ ]+) on/);
@@ -66,71 +66,39 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
                             motherId: animal.id,
                             semenName: semen,
                             date: event.date,
-                            imageUrl: calf?.image || (calf?.images && calf.images[0]) || animal.image,
-                            details: event.details
-                        });
-                    }
-
-                    // --- PREGNANCY RECORDS (Historical or Current) ---
-                    if (event.type === 'PREGNANCY_CHECK' && event.result === 'Positive') {
-                        items.push({
-                            id: event.id,
-                            type: 'PREGNANT',
-                            motherTag: animal.tagNumber,
-                            motherId: animal.id,
-                            semenName: event.semen || 'Recorded Semen',
-                            date: event.date,
-                            imageUrl: animal.image,
-                            details: `Confirmed Pregnant. ${event.details}`
-                        });
-                    }
-
-                    // --- INSEMINATION RECORDS (Active/Historical) ---
-                    if (event.type === 'INSEMINATION') {
-                        // Only add if not already covered by a later pregnancy check or calving for this "cycle"
-                        // To keep it simple, we show all major insemination attempts
-                        items.push({
-                            id: event.id,
-                            type: 'INSEMINATED',
-                            motherTag: animal.tagNumber,
-                            motherId: animal.id,
-                            semenName: event.semen || 'Active Straw',
-                            date: event.date,
-                            imageUrl: animal.image,
+                            imageUrl: calf?.image || (calf?.images && calf.images[0]) || (animal.category.includes('Calf') ? animal.image : undefined),
                             details: event.details
                         });
                     }
                 });
             }
 
-            // 2. Process Calves directly (Backup source for orphans or manually added calves)
-            if ((animal.category === 'Male Calf' || animal.category === 'Female Calf') && !processedCalfIds.has(animal.id)) {
-                const birthEvent = animal.history?.find(h => h.details.includes('Born to Mother'));
-                if (birthEvent) {
-                    const motherTagMatch = birthEvent.details.match(/Mother Tag: ([^ ]+)/);
-                    const motherTag = motherTagMatch ? motherTagMatch[1] : 'Unknown';
+            // 2. Process ALL animals directly (Backup source for records where mother doesn't have history)
+            const birthEvent = animal.history?.find(h => h.details.includes('Born to Mother'));
+            if (birthEvent && !processedCalfIds.has(animal.id)) {
+                const motherTagMatch = birthEvent.details.match(/Mother Tag: ([^ ]+)/);
+                const motherTag = motherTagMatch ? motherTagMatch[1] : 'Unknown';
 
-                    items.push({
-                        id: animal.id,
-                        type: 'CALVED',
-                        calfTag: animal.tagNumber,
-                        calfGender: animal.category,
-                        motherTag: motherTag,
-                        motherId: animal.motherId || '',
-                        semenName: birthEvent.semen || 'Unknown',
-                        date: birthEvent.date,
-                        imageUrl: animal.image || (animal.images && animal.images[0]),
-                        details: birthEvent.details
-                    });
-                }
+                items.push({
+                    id: animal.id,
+                    type: 'CALVED',
+                    calfTag: animal.tagNumber,
+                    calfGender: animal.category,
+                    motherTag: motherTag,
+                    motherId: animal.motherId || '',
+                    semenName: birthEvent.semen || 'Unknown',
+                    date: birthEvent.date,
+                    imageUrl: animal.image || (animal.images && animal.images[0]),
+                    details: birthEvent.details
+                });
             }
         });
 
-        // Filtering to avoid duplicates on the same day for same animal (e.g. redundant logs)
+        // Filtering to avoid duplicates on the same day for same animal
         const uniqueMap = new Map<string, SemenResult>();
         items.forEach(item => {
-            const key = `${item.motherTag}-${item.date.split('T')[0]}-${item.type}`;
-            if (!uniqueMap.has(key) || item.type === 'CALVED') {
+            const key = `${item.motherTag}-${item.date.split('T')[0]}-${item.calfTag}`;
+            if (!uniqueMap.has(key)) {
                 uniqueMap.set(key, item);
             }
         });
@@ -145,28 +113,14 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
     );
 
     const getStatusBadge = (type: ResultStatus) => {
-        switch (type) {
-            case 'CALVED':
-                return (
-                    <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
-                        <CheckCircle2 size={12} /> Success: Calved
-                    </span>
-                );
-            case 'PREGNANT':
-                return (
-                    <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-blue-100">
-                        <Timer size={12} /> Confirmed: Pregnant
-                    </span>
-                );
-            case 'INSEMINATED':
-                return (
-                    <span className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-100">
-                        <AlertCircle size={12} /> Pending: Inseminated
-                    </span>
-                );
-            default:
-                return null;
+        if (type === 'CALVED') {
+            return (
+                <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                    <CheckCircle2 size={12} /> Success: Calved
+                </span>
+            );
         }
+        return null;
     };
 
     return (

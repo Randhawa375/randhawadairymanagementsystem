@@ -78,7 +78,10 @@ const App: React.FC = () => {
           medications, 
           lastUpdated, 
           motherId, 
-          calvesIds
+          calvesIds,
+          image,
+          images,
+          history
         `)
         .eq('user_id', userId)
         .order('lastUpdated', { ascending: false });
