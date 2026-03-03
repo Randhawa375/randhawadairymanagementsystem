@@ -1,8 +1,8 @@
-
-import React, { useMemo, useState } from 'react';
-import { Baby, Calendar, User, Syringe, Image as ImageIcon, Search, Microscope, CheckCircle2, Timer, AlertCircle } from 'lucide-react';
-import { Animal, ReproductiveStatus } from '../types';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Baby, Calendar, User, Syringe, Image as ImageIcon, Search, Microscope, CheckCircle2, Loader2 } from 'lucide-react';
+import { Animal } from '../types';
 import { formatDate } from '../utils/helpers';
+import { supabase } from '../lib/supabase';
 import ImageModal from './ImageModal';
 
 interface SemenResultsProps {
@@ -28,12 +28,60 @@ interface SemenResult {
 const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [detailedAnimals, setDetailedAnimals] = useState<Animal[]>([]);
+
+    // Targeted Data Loading: Fetch history/images only for relevant animals
+    useEffect(() => {
+        const fetchNeededDetails = async () => {
+            setLoading(true);
+            try {
+                // Identify "Relevant" animals: 
+                // 1. All Calves (likely to be results)
+                // 2. All mothers that have calvesId (likely to have CALVING history)
+                const relevantIds = allAnimals
+                    .filter(a => a.category.includes('Calf') || (a.calvesIds && a.calvesIds.length > 0))
+                    .map(a => a.id);
+
+                if (relevantIds.length === 0) {
+                    setLoading(false);
+                    return;
+                }
+
+                // Fetch full details in batches to avoid URL length issues or heavy payloads
+                const { data, error } = await supabase
+                    .from('animals')
+                    .select('id, history, image, images')
+                    .in('id', relevantIds);
+
+                if (error) throw error;
+
+                if (data) {
+                    // Merge fetched details with basic animal data
+                    const merged = allAnimals.map(basic => {
+                        const detail = data.find(d => d.id === basic.id);
+                        return detail ? { ...basic, ...detail } : basic;
+                    });
+                    setDetailedAnimals(merged);
+                }
+            } catch (err) {
+                console.error("Error fetching semen result details:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchNeededDetails();
+    }, [allAnimals]);
 
     const results = useMemo(() => {
         const items: SemenResult[] = [];
         const processedCalfIds = new Set<string>();
 
-        allAnimals.forEach(animal => {
+        // Use detailedAnimals if available, otherwise fallback to allAnimals
+        const sourceData = detailedAnimals.length > 0 ? detailedAnimals : allAnimals;
+
+        sourceData.forEach(animal => {
             // 1. Process History Events for Mothers (Primary Source)
             if (animal.history) {
                 animal.history.forEach(event => {
@@ -41,7 +89,7 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
                     if (event.type === 'CALVING') {
                         let calf: Animal | undefined;
                         if (event.calfId) {
-                            calf = allAnimals.find(a => a.id === event.calfId);
+                            calf = sourceData.find(a => a.id === event.calfId);
                             if (calf) processedCalfIds.add(calf.id);
                         }
 
@@ -104,7 +152,7 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
         });
 
         return Array.from(uniqueMap.values()).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [allAnimals]);
+    }, [allAnimals, detailedAnimals]);
 
     const filteredResults = results.filter(r =>
         r.calfTag?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -132,8 +180,8 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
                 </div>
                 <div className="relative z-10">
                     <div className="flex items-center gap-4 mb-2">
-                        <div className="bg-indigo-900 p-3 rounded-2xl shadow-lg">
-                            <Microscope size={24} className="text-white" />
+                        <div className="bg-indigo-900 p-3 rounded-2xl shadow-lg text-white">
+                            <Microscope size={24} />
                         </div>
                         <h2 className="text-4xl font-black text-slate-900 tracking-tight">Semen Results Ledger</h2>
                     </div>
@@ -160,88 +208,96 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
                 </div>
             </div>
 
-            {/* Grid View */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredResults.map((result) => (
-                    <div key={result.id} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden hover:shadow-2xl transition-all duration-300 group flex flex-col h-full border-b-[6px] hover:border-b-indigo-500">
-                        {/* Image Preview */}
-                        <div className="h-64 bg-slate-100 relative overflow-hidden flex items-center justify-center cursor-pointer group-hover:brightness-110 transition-all"
-                            onClick={() => result.imageUrl && setFullScreenImage(result.imageUrl)}>
-                            {result.imageUrl ? (
-                                <img src={result.imageUrl} alt="Record" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                            ) : (
-                                <div className="flex flex-col items-center gap-3 text-slate-300">
-                                    <div className="p-6 bg-white rounded-full shadow-sm">
-                                        <ImageIcon size={48} />
-                                    </div>
-                                    <span className="text-[10px] font-black uppercase tracking-widest">No Image Available</span>
-                                </div>
-                            )}
+            {loading && (
+                <div className="flex flex-col items-center justify-center p-20 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-100 italic text-slate-400 font-bold gap-4">
+                    <Loader2 size={32} className="animate-spin text-indigo-600" />
+                    <p className="uppercase tracking-widest text-xs">Loading Detailed Records...</p>
+                </div>
+            )}
 
-                            {/* Type Badge Floating */}
-                            <div className="absolute top-5 left-5">
-                                {getStatusBadge(result.type)}
-                            </div>
-
-                            <div className="absolute bottom-5 right-5">
-                                <span className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl text-[11px] font-black text-slate-900 shadow-xl border border-white/20 uppercase tracking-widest">
-                                    {formatDate(result.date)}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="p-8 flex-1 flex flex-col">
-                            <div className="flex justify-between items-start mb-8">
-                                <div>
-                                    <h3 className="text-3xl font-black text-slate-900 tracking-tighter">
-                                        {result.type === 'CALVED' ? `Calf #${result.calfTag}` : `Mother #${result.motherTag}`}
-                                    </h3>
-                                    <p className="text-[11px] font-black text-indigo-500 uppercase tracking-widest mt-1">
-                                        {result.type === 'CALVED' ? result.calfGender : 'Pregnancy/Breeding Case'}
-                                    </p>
-                                </div>
-                                <div className={`p-3.5 rounded-2xl shadow-lg ${result.type === 'CALVED' ? 'bg-emerald-900 text-white' : 'bg-slate-900 text-white'}`}>
-                                    {result.type === 'CALVED' ? <Baby size={24} /> : <Syringe size={24} />}
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 flex-1">
-                                <InfoRow
-                                    label="Mother Tag"
-                                    value={`#${result.motherTag}`}
-                                    icon={<User size={18} />}
-                                    color="slate"
-                                />
-
-                                <InfoRow
-                                    label="Semen Straw"
-                                    value={result.semenName}
-                                    icon={<Syringe size={18} />}
-                                    color="amber"
-                                />
-
-                                {result.details && (
-                                    <div className="mt-6 pt-6 border-t border-slate-100">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Technical Note</p>
-                                        <p className="text-xs text-slate-600 font-medium leading-relaxed italic bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                            "{result.details.length > 100 ? result.details.substring(0, 100) + '...' : result.details}"
-                                        </p>
+            {!loading && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {filteredResults.map((result) => (
+                        <div key={result.id} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden hover:shadow-2xl transition-all duration-300 group flex flex-col h-full border-b-[6px] hover:border-b-indigo-500">
+                            {/* Image Preview */}
+                            <div className="h-64 bg-slate-100 relative overflow-hidden flex items-center justify-center cursor-pointer group-hover:brightness-110 transition-all"
+                                onClick={() => result.imageUrl && setFullScreenImage(result.imageUrl)}>
+                                {result.imageUrl ? (
+                                    <img src={result.imageUrl} alt="Record" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                ) : (
+                                    <div className="flex flex-col items-center gap-3 text-slate-300">
+                                        <div className="p-6 bg-white rounded-full shadow-sm">
+                                            <ImageIcon size={48} />
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">No Image Available</span>
                                     </div>
                                 )}
+
+                                {/* Type Badge Floating */}
+                                <div className="absolute top-5 left-5">
+                                    {getStatusBadge(result.type)}
+                                </div>
+
+                                <div className="absolute bottom-5 right-5">
+                                    <span className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl text-[11px] font-black text-slate-900 shadow-xl border border-white/20 uppercase tracking-widest">
+                                        {formatDate(result.date)}
+                                    </span>
+                                </div>
                             </div>
 
-                            <button
-                                onClick={() => onLoadDetails(result.motherId)}
-                                className="w-full mt-8 py-4 bg-slate-900 hover:bg-black text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg flex items-center justify-center gap-3 active:scale-95"
-                            >
-                                <Calendar size={16} /> View History Ledger
-                            </button>
-                        </div>
-                    </div>
-                ))}
-            </div>
+                            <div className="p-8 flex-1 flex flex-col">
+                                <div className="flex justify-between items-start mb-8">
+                                    <div>
+                                        <h3 className="text-3xl font-black text-slate-900 tracking-tighter">
+                                            {result.type === 'CALVED' ? `Calf #${result.calfTag}` : `Mother #${result.motherTag}`}
+                                        </h3>
+                                        <p className="text-[11px] font-black text-indigo-500 uppercase tracking-widest mt-1">
+                                            {result.type === 'CALVED' ? result.calfGender : 'Pregnancy/Breeding Case'}
+                                        </p>
+                                    </div>
+                                    <div className={`p-3.5 rounded-2xl shadow-lg ${result.type === 'CALVED' ? 'bg-emerald-900 text-white' : 'bg-slate-900 text-white'}`}>
+                                        {result.type === 'CALVED' ? <Baby size={24} /> : <Syringe size={24} />}
+                                    </div>
+                                </div>
 
-            {filteredResults.length === 0 && (
+                                <div className="space-y-4 flex-1">
+                                    <InfoRow
+                                        label="Mother Tag"
+                                        value={`#${result.motherTag}`}
+                                        icon={<User size={18} />}
+                                        color="slate"
+                                    />
+
+                                    <InfoRow
+                                        label="Semen Straw"
+                                        value={result.semenName}
+                                        icon={<Syringe size={18} />}
+                                        color="amber"
+                                    />
+
+                                    {result.details && (
+                                        <div className="mt-6 pt-6 border-t border-slate-100">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Technical Note</p>
+                                            <p className="text-xs text-slate-600 font-medium leading-relaxed italic bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                "{result.details.length > 100 ? result.details.substring(0, 100) + '...' : result.details}"
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <button
+                                    onClick={() => onLoadDetails(result.motherId)}
+                                    className="w-full mt-8 py-4 bg-slate-900 hover:bg-black text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg flex items-center justify-center gap-3 active:scale-95"
+                                >
+                                    <Calendar size={16} /> View History Ledger
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {!loading && filteredResults.length === 0 && (
                 <div className="bg-white rounded-[3rem] p-24 text-center border-4 border-dashed border-slate-100">
                     <div className="bg-slate-50 w-28 h-28 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
                         <Microscope size={48} className="text-slate-200" />
@@ -258,8 +314,8 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
 
 const StatBox = ({ label, value, color, icon }: any) => (
     <div className={`bg-${color}-50 px-6 py-4 rounded-[1.5rem] flex items-center gap-5 border border-${color}-100 shadow-sm`}>
-        <div className="bg-white p-3 rounded-2xl shadow-sm text-indigo-600">
-            {icon}
+        <div className="bg-white p-3 rounded-2xl shadow-sm">
+            <span className={`text-${color}-600`}>{icon}</span>
         </div>
         <div>
             <p className={`text-[10px] font-black text-${color}-400 uppercase tracking-widest`}>{label}</p>
