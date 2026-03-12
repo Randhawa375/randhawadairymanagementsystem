@@ -4,6 +4,8 @@ import { Milk, Search, Save, History, CheckCircle2, Loader2, Calendar } from 'lu
 import { Animal, MilkRecord, AnimalCategory, ReproductiveStatus } from '../types';
 import { formatDate, generateId } from '../utils/helpers';
 import { supabase } from '../lib/supabase';
+// @ts-ignore
+import Tesseract from 'tesseract.js';
 
 interface MilkManagerProps {
     allAnimals: Animal[];
@@ -21,6 +23,9 @@ const MilkManager: React.FC<MilkManagerProps> = ({
     const [milkEntries, setMilkEntries] = useState<Record<string, { morning: string; evening: string }>>({});
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState('');
+    const [isScanning, setIsScanning] = useState(false);
+    const [scanProgress, setScanProgress] = useState(0);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     // Eligible animals: Milking category OR Newly Calved status
     const eligibleAnimals = useMemo(() => {
@@ -53,6 +58,71 @@ const MilkManager: React.FC<MilkManagerProps> = ({
         const entry = milkEntries[animalId];
         if (!entry) return 0;
         return (parseFloat(entry.morning) || 0) + (parseFloat(entry.evening) || 0);
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsScanning(true);
+        setScanProgress(0);
+
+        try {
+            const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+                logger: m => {
+                    if (m.status === 'recognizing text') setScanProgress(m.progress);
+                }
+            });
+
+            processOCRText(text);
+        } catch (err) {
+            console.error("OCR Error:", err);
+            alert("Failed to scan image. Please try again with a clearer photo.");
+        } finally {
+            setIsScanning(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const processOCRText = (text: string) => {
+        const lines = text.split('\n');
+        const newEntries = { ...milkEntries };
+        let matchCount = 0;
+
+        lines.forEach(line => {
+            const cleanLine = line.trim().toUpperCase();
+            if (!cleanLine) return;
+
+            // Simple pattern: TagNumber followed by up to 2 numbers
+            // Example: "101 5.5 6.0" or "C-101 12"
+            eligibleAnimals.forEach(animal => {
+                const tag = animal.tagNumber.toUpperCase();
+                // Check if tag is in the line
+                if (cleanLine.includes(tag)) {
+                    // Extract numbers from the line that aren't the tag itself
+                    const lineWithoutTag = cleanLine.replace(tag, ' ');
+                    const numbers = lineWithoutTag.match(/(\d+(\.\d+)?)/g);
+
+                    if (numbers && numbers.length > 0) {
+                        const morning = numbers[0] || '';
+                        const evening = numbers[1] || '';
+
+                        newEntries[animal.id] = {
+                            morning: morning,
+                            evening: evening
+                        };
+                        matchCount++;
+                    }
+                }
+            });
+        });
+
+        if (matchCount > 0) {
+            setMilkEntries(newEntries);
+            window.alert(`AI Scanner: Successfully matched and imported recordings for ${matchCount} animals.`);
+        } else {
+            alert("AI Scanner was unable to find any matching Tag IDs and milk records in the image. Please ensure Tag IDs are clearly visible.");
+        }
     };
 
     const handleSaveAll = async () => {
@@ -136,6 +206,23 @@ const MilkManager: React.FC<MilkManagerProps> = ({
                     </div>
                 </div>
                 <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isScanning || isSaving}
+                    className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black flex flex-col items-center justify-center gap-1 hover:bg-emerald-700 transition-all shadow-lg w-full md:w-auto min-w-[150px] disabled:opacity-70"
+                >
+                    <div className="flex items-center gap-2 text-lg">
+                        {isScanning ? <Loader2 className="animate-spin" size={24} /> : <div className="bg-white/20 p-1 rounded-lg"><Search size={20} /></div>}
+                        <span>{isScanning ? 'Scanning...' : 'AI Scan Record'}</span>
+                    </div>
+                </button>
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                />
+                <button
                     onClick={handleSaveAll}
                     disabled={isSaving}
                     className="bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black flex flex-col items-center justify-center gap-1 hover:bg-indigo-700 transition-all shadow-lg w-full md:w-auto min-w-[200px] disabled:opacity-70"
@@ -150,12 +237,36 @@ const MilkManager: React.FC<MilkManagerProps> = ({
                 </button>
             </div>
 
+            {/* Scanning Progress Overlay */}
+            {isScanning && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-[2rem] p-8 shadow-2xl border-4 border-emerald-500 w-full max-w-md animate-in zoom-in duration-300">
+                        <div className="flex flex-col items-center text-center gap-4">
+                            <div className="bg-emerald-100 p-4 rounded-full text-emerald-600 animate-bounce">
+                                <Search size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-black text-slate-900">Scanning Your Record...</h3>
+                                <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] mt-1">Our AI is reading your milk sheet (ٹیبل سکین ہو رہا ہے)</p>
+                            </div>
+                            <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden border-2 border-slate-200">
+                                <div
+                                    className="bg-emerald-500 h-full transition-all duration-300"
+                                    style={{ width: `${scanProgress * 100}%` }}
+                                ></div>
+                            </div>
+                            <p className="font-black text-emerald-600 text-xl">{Math.round(scanProgress * 100)}%</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Stats Summary */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatBox label="Eligible Animals" value={eligibleAnimals.length} color="indigo" />
                 <StatBox label="Animals in List" value={filteredAnimals.length} color="slate" />
                 <StatBox label="Recorded Today" value={Object.keys(milkEntries).length} color="emerald" />
-                <StatBox label="Total Liter (Current)" value={Object.values(milkEntries).reduce((acc: number, curr: { morning: string; evening: string }) => acc + (parseFloat(curr.morning) || 0) + (parseFloat(curr.evening) || 0), 0).toFixed(1)} color="amber" />
+                <StatBox label="Total Liter (Current)" value={(Object.values(milkEntries) as { morning: string; evening: string }[]).reduce((acc: number, curr: { morning: string; evening: string }) => acc + (parseFloat(curr.morning) || 0) + (parseFloat(curr.evening) || 0), 0).toFixed(1)} color="amber" />
             </div>
 
             {/* Animals List */}
