@@ -60,6 +60,52 @@ const MilkManager: React.FC<MilkManagerProps> = ({
         return (parseFloat(entry.morning) || 0) + (parseFloat(entry.evening) || 0);
     };
 
+    const preprocessImage = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        resolve(e.target?.result as string);
+                        return;
+                    }
+
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+
+                    // Draw image
+                    ctx.drawImage(img, 0, 0);
+
+                    // Apply Grayscale and Contrast
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+
+                    for (let i = 0; i < data.length; i += 4) {
+                        // Grayscale
+                        const avg = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+
+                        // Contrast (Simple linear contrast enhancement)
+                        const contrast = 1.5; // 1.1 to 2.0
+                        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+                        const newValue = factor * (avg - 128) + 128;
+
+                        data[i] = newValue;
+                        data[i + 1] = newValue;
+                        data[i + 2] = newValue;
+                    }
+
+                    ctx.putImageData(imageData, 0, 0);
+                    resolve(canvas.toDataURL('image/jpeg', 0.9));
+                };
+                img.src = e.target?.result as string;
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -68,7 +114,10 @@ const MilkManager: React.FC<MilkManagerProps> = ({
         setScanProgress(0);
 
         try {
-            const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+            // Preprocess image for better OCR
+            const processedImageData = await preprocessImage(file);
+
+            const { data: { text } } = await Tesseract.recognize(processedImageData, 'eng', {
                 logger: m => {
                     if (m.status === 'recognizing text') setScanProgress(m.progress);
                 }
@@ -84,34 +133,66 @@ const MilkManager: React.FC<MilkManagerProps> = ({
         }
     };
 
+    const fuzzyMatch = (text: string, tag: string): boolean => {
+        // Normalize strings: remove all non-alphanumeric and convert to uppercase
+        const normalize = (s: string) => {
+            let res = s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            // Common OCR substitutions
+            return res
+                .replace(/O/g, '0')
+                .replace(/I/g, '1')
+                .replace(/L/g, '1')
+                .replace(/S/g, '5')
+                .replace(/G/g, '6')
+                .replace(/B/g, '8')
+                .replace(/Z/g, '2');
+        };
+
+        const normText = normalize(text);
+        const normTag = normalize(tag);
+
+        if (!normTag) return false;
+
+        // Exact normalized match or inclusion
+        return normText.includes(normTag) || normTag.includes(normText);
+    };
+
     const processOCRText = (text: string) => {
-        const lines = text.split('\n');
+        // Split into lines and cleanup
+        const rawLines = text.split('\n');
         const newEntries = { ...milkEntries };
         let matchCount = 0;
 
-        lines.forEach(line => {
-            const cleanLine = line.trim().toUpperCase();
-            if (!cleanLine) return;
+        rawLines.forEach(line => {
+            const cleanLine = line.trim();
+            if (!cleanLine || cleanLine.length < 2) return;
 
-            // Simple pattern: TagNumber followed by up to 2 numbers
-            // Example: "101 5.5 6.0" or "C-101 12"
+            // Look for numbers in the line (potential milk quantities)
+            // Pattern: Allow decimals, commas as dots, etc.
+            const numbersFound = cleanLine.replace(/,/g, '.').match(/(\d+(\.\d+)?)/g);
+            if (!numbersFound) return;
+
+            // For each eligible animal, check if its tag is present in this line
             eligibleAnimals.forEach(animal => {
-                const tag = animal.tagNumber.toUpperCase();
-                // Check if tag is in the line
-                if (cleanLine.includes(tag)) {
-                    // Extract numbers from the line that aren't the tag itself
-                    const lineWithoutTag = cleanLine.replace(tag, ' ');
-                    const numbers = lineWithoutTag.match(/(\d+(\.\d+)?)/g);
+                const tag = animal.tagNumber;
 
-                    if (numbers && numbers.length > 0) {
-                        const morning = numbers[0] || '';
-                        const evening = numbers[1] || '';
+                // If tag is found in line using fuzzy logic
+                if (fuzzyMatch(cleanLine, tag)) {
+                    // Filter out numbers that are likely the tag number itself
+                    const nonTagNumbers = numbersFound.filter(num => !fuzzyMatch(num, tag));
 
-                        newEntries[animal.id] = {
-                            morning: morning,
-                            evening: evening
-                        };
-                        matchCount++;
+                    if (nonTagNumbers.length > 0) {
+                        const morning = nonTagNumbers[0] || '';
+                        const evening = nonTagNumbers[1] || '';
+
+                        // Only update if we found something new or if it's currently empty
+                        if (!newEntries[animal.id] || (!newEntries[animal.id].morning && !newEntries[animal.id].evening)) {
+                            newEntries[animal.id] = {
+                                morning: morning,
+                                evening: evening
+                            };
+                            matchCount++;
+                        }
                     }
                 }
             });
@@ -119,9 +200,9 @@ const MilkManager: React.FC<MilkManagerProps> = ({
 
         if (matchCount > 0) {
             setMilkEntries(newEntries);
-            window.alert(`AI Scanner: Successfully matched and imported recordings for ${matchCount} animals.`);
+            window.alert(`AI Scanner (v2.0): Successfully matched and imported recordings for ${matchCount} animals using intelligent matching.`);
         } else {
-            alert("AI Scanner was unable to find any matching Tag IDs and milk records in the image. Please ensure Tag IDs are clearly visible.");
+            alert("AI Scanner was unable to find any matching Tag IDs. Tip: Make sure Tag IDs are clearly visible and use the 'Morning, Evening' format.");
         }
     };
 
