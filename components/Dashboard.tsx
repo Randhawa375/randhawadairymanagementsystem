@@ -115,30 +115,35 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
   }, [activeAnimals]);
 
-  const animalsDueForCheck = React.useMemo(() => activeAnimals.filter(a => {
+  const alertsList = React.useMemo(() =>
+    allAnimals.filter(a => a.status !== ReproductiveStatus.SOLD && (activeFarm === 'all' || a.farm === activeFarm)),
+    [allAnimals, activeFarm]
+  );
+
+  const animalsDueForCheck = React.useMemo(() => alertsList.filter(a => {
     if (a.status !== ReproductiveStatus.INSEMINATED || !a.inseminationDate) return false;
     const days = helpers.getDaysToPregnancyCheck(a.inseminationDate, a.category);
     return days !== null && days <= 0;
-  }), [activeAnimals]);
+  }), [alertsList]);
 
-  const animalsReadyForCalving = React.useMemo(() => activeAnimals.filter(a => {
+  const animalsReadyForCalving = React.useMemo(() => alertsList.filter(a => {
     if ((a.status !== ReproductiveStatus.PREGNANT && a.status !== ReproductiveStatus.DRY) || !a.expectedCalvingDate) return false;
     const days = helpers.getDaysToCalving(a.expectedCalvingDate);
     return days !== null && days <= 10;
-  }), [activeAnimals]);
+  }), [alertsList]);
 
-  const animalsDueForDry = React.useMemo(() => activeAnimals.filter(a => {
+  const animalsDueForDry = React.useMemo(() => alertsList.filter(a => {
     if (a.status !== ReproductiveStatus.PREGNANT || !a.inseminationDate) return false;
     const daysGestation = helpers.getGestationDays(a.inseminationDate);
     return daysGestation !== null && daysGestation >= 225;
-  }), [activeAnimals]);
+  }), [alertsList]);
 
-  const animalsReadyForInsemination = React.useMemo(() => activeAnimals.filter(a => {
+  const animalsReadyForInsemination = React.useMemo(() => alertsList.filter(a => {
     if (a.status !== ReproductiveStatus.NEWLY_CALVED && a.status !== ReproductiveStatus.OPEN) return false;
     if (!a.calvingDate) return false;
     const days = helpers.getDaysSinceCalving(a.calvingDate);
     return days !== null && days >= 45;
-  }), [activeAnimals]);
+  }), [alertsList]);
 
   const searchedAnimal = React.useMemo(() => {
     if (searchQuery.length < 1) return null;
@@ -490,7 +495,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {/* ALERTS HUB */}
-      {(animalsDueForDry.length > 0 || animalsDueForCheck.length > 0 || animalsReadyForCalving.length > 0) && (
+      {(animalsDueForDry.length > 0 || animalsDueForCheck.length > 0 || animalsReadyForCalving.length > 0 || animalsReadyForInsemination.length > 0) && (
         <div className="no-print space-y-4">
           <div className="flex items-center gap-3 px-2">
             <div className="bg-rose-100 p-2 rounded-xl text-rose-600 animate-pulse">

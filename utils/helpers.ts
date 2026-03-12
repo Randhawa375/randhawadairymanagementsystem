@@ -1,5 +1,5 @@
 
-import { addDays, differenceInDays, format, isValid } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, isValid } from 'date-fns';
 
 // Using native Date constructor instead of parseISO to resolve compatibility issues with the date-fns import
 export const calculatePregnancyCheckDate = (inseminationDate: string, category?: string) => {
@@ -25,31 +25,31 @@ export const calculateReInseminationDate = (calvingDate: string) => {
 export const getDaysToPregnancyCheck = (inseminationDate: string, category?: string) => {
   const checkDate = calculatePregnancyCheckDate(inseminationDate, category);
   if (!checkDate) return null;
-  return differenceInDays(checkDate, new Date());
+  return differenceInCalendarDays(checkDate, new Date());
 };
 
 export const getDaysToCalving = (expectedCalvingDate: string) => {
   const date = new Date(expectedCalvingDate);
   if (!isValid(date)) return null;
-  return differenceInDays(date, new Date());
+  return differenceInCalendarDays(date, new Date());
 };
 
 export const getDaysSinceCalving = (calvingDate: string) => {
   const date = new Date(calvingDate);
   if (!isValid(date)) return null;
-  return differenceInDays(new Date(), date);
+  return differenceInCalendarDays(new Date(), date);
 };
 
 export const getGestationDays = (inseminationDate: string) => {
   const date = new Date(inseminationDate);
   if (!isValid(date)) return null;
-  return differenceInDays(new Date(), date);
+  return differenceInCalendarDays(new Date(), date);
 };
 
 export const getDaysSinceLastUpdate = (lastUpdated: string) => {
   const date = new Date(lastUpdated);
   if (!isValid(date)) return null;
-  return differenceInDays(new Date(), date);
+  return differenceInCalendarDays(new Date(), date);
 };
 
 export const formatDate = (dateString: string) => {
@@ -101,7 +101,7 @@ export const getSireInfo = (animal: Animal, allAnimals: Animal[]): string | null
 
             for (const insem of possibleInsems) {
               const constceptionDate = new Date(insem.date);
-              const daysDiff = differenceInDays(birthDate, constceptionDate);
+              const daysDiff = differenceInCalendarDays(birthDate, constceptionDate);
               // Acceptance window: 240 to 310 days
               if (daysDiff >= 240 && daysDiff <= 310) {
                 return insem.semen || (insem.details.match(/Inseminated with (.*)/)?.[1]) || null;
