@@ -47,6 +47,18 @@ export interface HistoryEvent {
   recordedBy?: string;
 }
 
+export interface MilkRecord {
+  id: string;
+  animalId: string;
+  tagNumber: string;
+  date: string;
+  morningMilk: number;
+  eveningMilk: number;
+  totalMilk: number;
+  userId: string;
+  createdAt?: string;
+}
+
 export interface Animal {
   id: string;
   tagNumber: string;
@@ -66,4 +78,5 @@ export interface Animal {
   image?: string; // Primary Profile Pic (Base64)
   images?: string[]; // Gallery (Base64 strings)
   history?: HistoryEvent[];
+  milkRecords?: MilkRecord[];
 }

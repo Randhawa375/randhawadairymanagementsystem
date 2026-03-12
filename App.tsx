@@ -16,14 +16,15 @@ import Dashboard from './components/Dashboard';
 import AnimalManager from './components/AnimalManager';
 import ReportsManager from './components/ReportsManager';
 import SemenResults from './components/SemenResults';
+import MilkManager from './components/MilkManager';
 import Auth from './components/Auth';
-import { Animal, FarmLocation, AnimalCategory, ReproductiveStatus, User } from './types';
+import { Animal, FarmLocation, AnimalCategory, ReproductiveStatus, User, MilkRecord } from './types';
 import { formatDate } from './utils/helpers';
 import { supabase } from './lib/supabase';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [view, setView] = useState<'dashboard' | 'list' | 'reports' | 'semen_results'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'list' | 'reports' | 'semen_results' | 'milk'>('dashboard');
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [activeFarm, setActiveFarm] = useState<FarmLocation | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -242,6 +243,34 @@ const App: React.FC = () => {
     }
   };
 
+  // Sync Milk Records to Supabase
+  const onSyncMilkRecords = async (records: MilkRecord[]) => {
+    if (!currentUser) {
+      console.error("No active session for milk sync.");
+      throw new Error("No active session. Please log in.");
+    }
+
+    try {
+      const cleanRecords = records.map(r => ({
+        animal_id: r.animalId,
+        tag_number: r.tagNumber,
+        date: r.date,
+        morning_milk: r.morningMilk,
+        evening_milk: r.eveningMilk,
+        user_id: currentUser.id
+      }));
+
+      const { error } = await supabase
+        .from('milking_records')
+        .upsert(cleanRecords, { onConflict: 'animal_id,date' });
+
+      if (error) throw error;
+    } catch (err: any) {
+      console.error('Milk Sync Error:', err);
+      throw err;
+    }
+  };
+
   const filteredAnimals = useMemo(() => {
     return animals.filter(a => {
       const farmMatch = activeFarm === 'all' || a.farm === activeFarm;
@@ -454,6 +483,7 @@ const App: React.FC = () => {
             <NavItem active={view === 'reports'} onClick={() => setView('reports')} icon={<FileText size={18} />} label="Summary Reports" />
           )}
           <NavItem active={view === 'semen_results'} onClick={() => setView('semen_results')} icon={<Microscope size={18} />} label="Semen Results" />
+          <NavItem active={view === 'milk'} onClick={() => setView('milk')} icon={<Milk size={18} />} label="Milk Recording" />
         </div>
       </nav>
 
@@ -496,6 +526,13 @@ const App: React.FC = () => {
         {view === 'semen_results' && (
           <SemenResults
             allAnimals={animals}
+            onLoadDetails={fetchAnimalDetails}
+          />
+        )}
+        {view === 'milk' && (
+          <MilkManager
+            allAnimals={animals}
+            onSaveMilkRecords={onSyncMilkRecords}
             onLoadDetails={fetchAnimalDetails}
           />
         )}
