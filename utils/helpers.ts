@@ -91,48 +91,52 @@ import { Animal, ReproductiveStatus } from '../types';
 
 export const getSireInfo = (animal: Animal, allAnimals: Animal[]): string | null => {
   if (!animal) return null;
-  if (animal.sireName) return animal.sireName;
-  const isCalf = animal.category.includes('Calf') || animal.status === ReproductiveStatus.OPEN || animal.status === ReproductiveStatus.CHILD;
-  if (!isCalf) return null;
+  // 1. Database-level permanently saved Sire
+  if (animal.sireName && animal.sireName !== 'Unknown') return animal.sireName;
 
-  // 1. Direct check in Child's History (for new records)
-  const birthEvent = animal.history?.find(h => h.semen && (h.details.includes('Born to') || h.type === 'GENERAL'));
-  if (birthEvent?.semen) return birthEvent.semen;
+  // 2. Direct check in Child's History logs
+  const birthEvent = animal.history?.find(h => (h.details || '').includes('Born to'));
+  if (birthEvent && birthEvent.semen && birthEvent.semen !== 'Unknown') return birthEvent.semen;
 
-  // 2. Mother Check (for legacy records)
-  if (animal.motherId) {
-    const mother = allAnimals.find(a => a.id === animal.motherId);
-    if (mother && mother.history) {
-      // A. Try identifying distinct Calving Event (Checking both by ID and Tag)
-      const birthLog = mother.history.find(h => h.type === 'CALVING' && (h.calfId === animal.id || h.details.includes(animal.tagNumber)));
-      if (birthLog) {
-        // Regex to find "Semen X used" or "Semen: X" or "Sire: X"
-        const match = birthLog.details.match(/(?:Semen|Sire)(?: Name)?[:\s]+(.*?)(?:\s+used|;|\.|$)/i);
-        if (match && match[1]) return match[1].trim();
-      }
+  // 3. Mother Deep Track (Cross-referencing parent records)
+  let mother = animal.motherId ? allAnimals.find(a => a.id === animal.motherId) : undefined;
+  
+  // If motherId link is broken/missing, attempt to parse the Mother's Tag from the birth history
+  if (!mother && birthEvent && birthEvent.details) {
+    const tagMatch = birthEvent.details.match(/Tag:\s*([a-zA-Z0-9-]+)/i);
+    if (tagMatch && tagMatch[1]) {
+      mother = allAnimals.find(a => a.tagNumber.toUpperCase() === tagMatch[1].toUpperCase());
+    }
+  }
 
-      // B. Fallback: Search Mother's Insemination history based on estimated conception
-      // Estimate birth date from child's creation (first history event or lastUpdated if very new)
-      const birthDateStr = birthEvent?.date ||
-        (animal.history && animal.history.length > 0 ? animal.history[animal.history.length - 1].date : animal.lastUpdated);
+  if (mother && mother.history) {
+    // A. Search mother's exact CALVING event corresponding to this child
+    const birthLog = mother.history.find(h => h.type === 'CALVING' && (h.calfId === animal.id || h.details.includes(animal.tagNumber)));
+    
+    if (birthLog) {
+      if (birthLog.semen && birthLog.semen !== 'Unknown') return birthLog.semen;
+      // Parse details text to extract "Semen ___ used" if not in the proper column
+      const match = birthLog.details.match(/Semen\s+([a-zA-Z0-9-\s]+)\s+used/i) || birthLog.details.match(/(?:Semen|Sire)(?: Name)?[:\s]+(.*?)(?:\s+used|;|\.|$)/i);
+      if (match && match[1] && match[1] !== 'Unknown') return match[1].trim();
+    }
 
-      if (birthDateStr) {
-        const birthDate = new Date(birthDateStr);
-        if (isValid(birthDate)) {
-          // Filter history for INSEMINATION events BEFORE birth date
-          // Gestation ~283 days. Look for insemination 250-310 days before birth
-          const possibleInsems = mother.history.filter(h => h.type === 'INSEMINATION' && new Date(h.date) < birthDate);
-          if (possibleInsems.length > 0) {
-            // Sort desc (latest first)
-            possibleInsems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // B. Fallback: Search Mother's Insemination history based on gestation timeline
+    const birthDateStr = birthEvent?.date || (animal.history && animal.history.length > 0 ? animal.history[animal.history.length - 1].date : animal.lastUpdated);
 
-            for (const insem of possibleInsems) {
-              const constceptionDate = new Date(insem.date);
-              const daysDiff = differenceInCalendarDays(birthDate, constceptionDate);
-              // Acceptance window: 240 to 310 days
-              if (daysDiff >= 240 && daysDiff <= 310) {
-                return insem.semen || (insem.details.match(/Inseminated with (.*)/)?.[1]) || null;
-              }
+    if (birthDateStr) {
+      const birthDate = new Date(birthDateStr);
+      if (isValid(birthDate)) {
+        // Gestation ~283 days. Look for insemination 240-310 days before birth
+        const possibleInsems = mother.history.filter(h => h.type === 'INSEMINATION' && new Date(h.date) < birthDate);
+        if (possibleInsems.length > 0) {
+          possibleInsems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+          for (const insem of possibleInsems) {
+            const conceptionDate = new Date(insem.date);
+            const daysDiff = differenceInCalendarDays(birthDate, conceptionDate);
+            if (daysDiff >= 240 && daysDiff <= 310) {
+              const sem = insem.semen || (insem.details.match(/Inseminated with (.*)/)?.[1]);
+              if (sem && sem !== 'Unknown') return sem.trim();
             }
           }
         }
