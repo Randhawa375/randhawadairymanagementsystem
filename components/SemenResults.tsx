@@ -1,21 +1,24 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Baby, Calendar, User, Syringe, Image as ImageIcon, Search, Microscope, CheckCircle2, Loader2 } from 'lucide-react';
+import { Baby, Calendar, User, Syringe, Image as ImageIcon, Search, Microscope, CheckCircle2, Loader2, Edit2, Check, X } from 'lucide-react';
 import { Animal } from '../types';
-import { formatDate } from '../utils/helpers';
+import { formatDate, getSireInfo } from '../utils/helpers';
 import { supabase } from '../lib/supabase';
 import ImageModal from './ImageModal';
 
 interface SemenResultsProps {
     allAnimals: Animal[];
     onLoadDetails: (id: string) => void;
+    onUpdateAnimal: (animal: Animal) => Promise<void>;
 }
 
 type ResultStatus = 'CALVED' | 'PREGNANT' | 'INSEMINATED' | 'FAILED';
 
 interface SemenResult {
     id: string; // for key
+    eventId?: string;
     type: ResultStatus;
     calfTag?: string;
+    calfId?: string;
     calfGender?: string;
     motherTag: string;
     motherId: string;
@@ -25,11 +28,15 @@ interface SemenResult {
     details?: string;
 }
 
-const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }) => {
+const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails, onUpdateAnimal }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [detailedAnimals, setDetailedAnimals] = useState<Animal[]>([]);
+
+    const [editingResultId, setEditingResultId] = useState<string | null>(null);
+    const [editedSemenName, setEditedSemenName] = useState<string>('');
+    const [savingSemen, setSavingSemen] = useState(false);
 
     // Targeted Data Loading: Fetch history/images only for relevant animals
     useEffect(() => {
@@ -103,16 +110,24 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
 
                         // Robust Semen Extraction
                         const semenMatch = event.details.match(/Semen ([^ ]+) used/) || event.details.match(/with ([^ ]+) on/);
-                        const semen = event.semen || (semenMatch ? semenMatch[1] : 'Not Recorded');
+                        let extractedSemen = event.semen || (semenMatch ? semenMatch[1] : 'Unknown');
+                        
+                        // Use the intelligent tracking system we built if unknown!
+                        if ((!extractedSemen || extractedSemen === 'Unknown') && calf) {
+                           const sireInfo = getSireInfo(calf, sourceData);
+                           if (sireInfo && sireInfo !== 'Unknown') extractedSemen = sireInfo;
+                        }
 
                         items.push({
                             id: event.id,
+                            eventId: event.id,
                             type: 'CALVED',
+                            calfId: calf?.id,
                             calfTag,
                             calfGender: gender,
                             motherTag: animal.tagNumber,
                             motherId: animal.id,
-                            semenName: semen,
+                            semenName: extractedSemen,
                             date: event.date,
                             imageUrl: calf?.image || (calf?.images && calf.images[0]) || (animal.category.includes('Calf') ? animal.image : undefined),
                             details: event.details
@@ -127,14 +142,22 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
                 const motherTagMatch = birthEvent.details.match(/Mother Tag: ([^ ]+)/);
                 const motherTag = motherTagMatch ? motherTagMatch[1] : 'Unknown';
 
+                let extractedSemen = birthEvent.semen || 'Unknown';
+                if (!extractedSemen || extractedSemen === 'Unknown') {
+                    const sireInfo = getSireInfo(animal, sourceData);
+                    if (sireInfo && sireInfo !== 'Unknown') extractedSemen = sireInfo;
+                }
+
                 items.push({
                     id: animal.id,
+                    eventId: birthEvent.id,
                     type: 'CALVED',
+                    calfId: animal.id,
                     calfTag: animal.tagNumber,
                     calfGender: animal.category,
                     motherTag: motherTag,
                     motherId: animal.motherId || '',
-                    semenName: birthEvent.semen || 'Unknown',
+                    semenName: extractedSemen,
                     date: birthEvent.date,
                     imageUrl: animal.image || (animal.images && animal.images[0]),
                     details: birthEvent.details
@@ -159,6 +182,54 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
         r.motherTag.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.semenName.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const handleSaveSemen = async (result: SemenResult) => {
+        try {
+            setSavingSemen(true);
+            const mother = allAnimals.find(a => a.id === result.motherId);
+            if (!mother) throw new Error("Could not find mother record to attach the straw.");
+
+            let updatedMother = { ...mother };
+            if (updatedMother.history) {
+                updatedMother.history = updatedMother.history.map(h => {
+                    if (h.id === result.eventId || h.id === result.id) {
+                        return { ...h, semen: editedSemenName };
+                    }
+                    return h;
+                });
+            }
+
+            if (result.calfId) {
+                const calf = allAnimals.find(a => a.id === result.calfId);
+                if (calf) {
+                    let updatedCalf = { ...calf, sireName: editedSemenName };
+                    if (updatedCalf.history) {
+                        updatedCalf.history = updatedCalf.history.map(h => {
+                            if (h.id === result.eventId || h.details.includes('Born to')) {
+                                return { ...h, semen: editedSemenName };
+                            }
+                            return h;
+                        });
+                    }
+                    await onUpdateAnimal(updatedCalf);
+                }
+            }
+            
+            await onUpdateAnimal(updatedMother);
+            setEditingResultId(null);
+            
+            // Temporary trigger detail fetch to refresh state locally
+            onLoadDetails(mother.id); 
+            setTimeout(() => {
+                const closeModalOverlay = document.querySelector('.bg-slate-900\\/40');
+                if(closeModalOverlay) (closeModalOverlay as HTMLDivElement).click();
+            }, 500);
+        } catch (err: any) {
+            alert('Error updating semen straw: ' + err.message);
+        } finally {
+            setSavingSemen(false);
+        }
+    };
 
     const getStatusBadge = (type: ResultStatus) => {
         if (type === 'CALVED') {
@@ -268,12 +339,49 @@ const SemenResults: React.FC<SemenResultsProps> = ({ allAnimals, onLoadDetails }
                                         color="slate"
                                     />
 
-                                    <InfoRow
-                                        label="Semen Straw"
-                                        value={result.semenName}
-                                        icon={<Syringe size={18} />}
-                                        color="amber"
-                                    />
+                                    <div className="flex items-center gap-4 p-4 rounded-2xl bg-amber-50 border border-amber-100 transition-colors">
+                                        <div className="bg-white p-2.5 rounded-xl shadow-sm">
+                                            <Syringe size={18} className="text-amber-500" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Semen Straw</p>
+                                            {editingResultId === result.id ? (
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <input 
+                                                        type="text" 
+                                                        className="w-full px-2 py-1.5 text-xs font-black text-slate-800 border-2 border-indigo-200 rounded-lg outline-none focus:border-indigo-500 bg-white"
+                                                        value={editedSemenName}
+                                                        onChange={(e) => setEditedSemenName(e.target.value)}
+                                                        autoFocus
+                                                    />
+                                                    <button 
+                                                        onClick={() => handleSaveSemen(result)} 
+                                                        disabled={savingSemen}
+                                                        className="bg-emerald-500 text-white p-1.5 rounded-lg hover:bg-emerald-600 shadow-md transition-transform active:scale-95 disabled:opacity-50"
+                                                    >
+                                                        {savingSemen ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => setEditingResultId(null)}
+                                                        disabled={savingSemen}
+                                                        className="bg-rose-500 text-white p-1.5 rounded-lg hover:bg-rose-600 shadow-md transition-transform active:scale-95 disabled:opacity-50"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center justify-between group mt-0.5">
+                                                    <p className="font-black text-amber-900 truncate text-sm">{result.semenName}</p>
+                                                    <button 
+                                                        onClick={() => { setEditingResultId(result.id); setEditedSemenName(result.semenName !== 'Unknown' ? result.semenName : ''); }}
+                                                        className="opacity-0 group-hover:opacity-100 p-1.5 bg-amber-200 text-amber-700 rounded-lg hover:bg-amber-300 transition-all"
+                                                    >
+                                                        <Edit2 size={12} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
 
                                     {result.details && (
                                         <div className="mt-6 pt-6 border-t border-slate-100">

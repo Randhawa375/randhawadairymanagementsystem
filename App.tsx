@@ -531,6 +531,7 @@ const App: React.FC = () => {
           <SemenResults
             allAnimals={animals}
             onLoadDetails={fetchAnimalDetails}
+            onUpdateAnimal={onSyncAnimal}
           />
         )}
         {view === 'milk' && (
