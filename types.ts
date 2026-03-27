@@ -66,6 +66,7 @@ export interface Animal {
   category: AnimalCategory;
   status: ReproductiveStatus;
   farm: FarmLocation;
+  dateOfBirth?: string;
   inseminationDate?: string;
   semenName?: string;
   expectedCalvingDate?: string;

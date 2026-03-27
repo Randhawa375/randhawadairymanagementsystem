@@ -443,6 +443,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
+            <DataBlock label="Age (عمر)" value={helpers.calculateAge(searchedAnimal.dateOfBirth)} icon={<Users size={14} />} />
             {motherTag && <DataBlock label="Mother Tag" value={motherTag} icon={<Users size={14} />} />}
 
             {(() => {

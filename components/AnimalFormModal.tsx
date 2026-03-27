@@ -26,6 +26,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
     category: AnimalCategory.MILKING,
     status: ReproductiveStatus.OPEN,
     farm: activeFarmSelection || FarmLocation.MILKING_FARM,
+    dateOfBirth: '',
     inseminationDate: '',
     semenName: '',
     remarks: '',
@@ -89,6 +90,11 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
       }
 
       const finalData = { ...formData };
+      
+      // Auto-assign birth date to current if missing on new records
+      if (!finalData.dateOfBirth && !editAnimal) {
+        finalData.dateOfBirth = new Date().toISOString();
+      }
 
       // Handle Main Image Upload
       if (selectedImageFile) {
@@ -303,6 +309,20 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
               ) : (
                 <div className="w-24 h-24 rounded-2xl bg-slate-50 border-2 border-slate-100 flex items-center justify-center text-slate-300 text-xs font-bold uppercase">No Image</div>
               )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                 Date of Birth (تاریخ پیدائش)
+              </label>
+              <input
+                type="date"
+                value={formData.dateOfBirth ? formData.dateOfBirth.split('T')[0] : ''}
+                onChange={e => setFormData(p => ({ ...p, dateOfBirth: e.target.value ? new Date(e.target.value).toISOString() : '' }))}
+                className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-slate-900 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
+              />
             </div>
           </div>
 

@@ -11,7 +11,8 @@ import {
   getDaysToPregnancyCheck,
   getGestationDays,
   getDaysSinceLastUpdate,
-  getSireInfo
+  getSireInfo,
+  calculateAge
 } from '../utils/helpers';
 import { uploadImage } from '../utils/storage';
 
@@ -499,6 +500,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <SummaryItem label="Age" value={calculateAge(searchedAnimal.dateOfBirth)} />
             <SummaryItem label="Breeding Date" value={formatDate(searchedAnimal.inseminationDate || '')} />
             {motherTag && <SummaryItem label="Mother Tag" value={motherTag} />}
             <SummaryItem
@@ -578,9 +580,10 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="font-black text-2xl text-slate-900">#{animal.tagNumber}</span>
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex gap-2 mt-1 flex-wrap">
                       <span className="text-[10px] font-black uppercase text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{animal.category}</span>
                       <span className="text-[10px] font-black uppercase text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{animal.farm}</span>
+                      <span className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded">Age: {calculateAge(animal.dateOfBirth)}</span>
                     </div>
                   </div>
                   <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${animal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
@@ -660,6 +663,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               <tr className="bg-slate-100 border-b-2 border-slate-200">
                 <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest text-center w-12">ID Tag</th>
                 <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest">Type / Location</th>
+                <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest text-center">Age</th>
                 <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest text-center">Status / cycle info</th>
                 <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest text-center no-print">Manage</th>
               </tr>
@@ -690,6 +694,9 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                     <td className="p-4">
                       <p className="font-black text-slate-800 text-sm">{animal.category}</p>
                       <p className="text-[10px] text-slate-400 font-black uppercase">{animal.farm}</p>
+                    </td>
+                    <td className="p-4 text-center">
+                      <span className="font-black text-slate-700 text-sm whitespace-nowrap">{calculateAge(animal.dateOfBirth)}</span>
                     </td>
                     <td className="p-4 text-center">
                       <div className="flex flex-col items-center gap-1">

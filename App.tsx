@@ -71,6 +71,7 @@ const App: React.FC = () => {
           category, 
           status, 
           farm, 
+          dateOfBirth,
           inseminationDate, 
           semenName, 
           expectedCalvingDate, 
@@ -143,7 +144,7 @@ const App: React.FC = () => {
     const clean: any = { ...animal, user_id: userId };
 
     // Postgres TIMESTAMPTZ columns reject empty strings but accept nulls
-    const dateFields = ['inseminationDate', 'expectedCalvingDate', 'calvingDate'];
+    const dateFields = ['dateOfBirth', 'inseminationDate', 'expectedCalvingDate', 'calvingDate'];
     dateFields.forEach(field => {
       if (clean[field] === "" || clean[field] === undefined) {
         clean[field] = null;
