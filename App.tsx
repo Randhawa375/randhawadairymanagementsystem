@@ -19,7 +19,7 @@ import SemenResults from './components/SemenResults';
 import MilkManager from './components/MilkManager';
 import Auth from './components/Auth';
 import { Animal, FarmLocation, AnimalCategory, ReproductiveStatus, User, MilkRecord } from './types';
-import { formatDate } from './utils/helpers';
+import { formatDate, calculateAge } from './utils/helpers';
 import { supabase } from './lib/supabase';
 
 const App: React.FC = () => {
@@ -375,6 +375,7 @@ const App: React.FC = () => {
       a.tagNumber,
       a.category,
       a.farm,
+      calculateAge(a.dateOfBirth),
       a.status,
       (() => {
         if ((a.status === ReproductiveStatus.PREGNANT || a.status === ReproductiveStatus.DRY) && a.expectedCalvingDate) {
@@ -397,17 +398,18 @@ const App: React.FC = () => {
 
     autoTable(doc, {
       startY: tableStartY,
-      head: [['No.', 'Tag ID', 'Type/Category', 'Farm Location', 'Repro Status', 'Timeline / Notes']],
+      head: [['No.', 'Tag ID', 'Type/Category', 'Farm Location', 'Age', 'Repro Status', 'Timeline / Notes']],
       body: rows,
       theme: 'grid',
       headStyles: { fillColor: [15, 23, 42], fontSize: 9, halign: 'center', textColor: [255, 255, 255] },
       styles: { fontSize: 8, cellPadding: 2.5 },
       columnStyles: {
-        0: { halign: 'center', cellWidth: 10 },
-        1: { halign: 'center', fontStyle: 'bold', cellWidth: 20 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 30 },
-        4: { halign: 'center', cellWidth: 30 }
+        0: { halign: 'center', cellWidth: 8 },
+        1: { halign: 'center', fontStyle: 'bold', cellWidth: 15 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 25 },
+        4: { halign: 'center', cellWidth: 15 },
+        5: { halign: 'center', cellWidth: 25 }
       }
     });
 

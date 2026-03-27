@@ -1,5 +1,5 @@
 
-import { addDays, differenceInCalendarDays, differenceInYears, differenceInMonths, differenceInDays, format, isValid } from 'date-fns';
+import { addDays, addMonths, differenceInCalendarDays, differenceInYears, differenceInMonths, differenceInDays, format, isValid } from 'date-fns';
 
 // Using native Date constructor instead of parseISO to resolve compatibility issues with the date-fns import
 export const calculatePregnancyCheckDate = (inseminationDate: string, category?: string) => {
@@ -75,7 +75,10 @@ export const calculateAge = (dateOfBirth?: string | null): string => {
   }
   
   if (months > 0) {
-    return `${months}m`;
+    const dobPlusMonths = addMonths(dob, totalMonths);
+    const days = differenceInDays(now, dobPlusMonths);
+    if (days === 0) return `${months}m`;
+    return `${months}m ${days}d`;
   }
   
   const days = differenceInDays(now, dob);

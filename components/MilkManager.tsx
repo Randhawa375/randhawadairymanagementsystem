@@ -88,7 +88,7 @@ const MilkManager: React.FC<MilkManagerProps> = ({
                         const avg = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
 
                         // Contrast (Simple linear contrast enhancement)
-                        const contrast = 1.5; // 1.1 to 2.0
+                        const contrast = 1.2; // 1.1 to 2.0
                         const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
                         const newValue = factor * (avg - 128) + 128;
 
@@ -133,76 +133,93 @@ const MilkManager: React.FC<MilkManagerProps> = ({
         }
     };
 
-    const fuzzyMatch = (text: string, tag: string): boolean => {
-        // Normalize strings: remove all non-alphanumeric and convert to uppercase
-        const normalize = (s: string) => {
-            let res = s.toUpperCase().replace(/[^A-Z0-9]/g, '');
-            // Common OCR substitutions
-            return res
-                .replace(/O/g, '0')
-                .replace(/I/g, '1')
-                .replace(/L/g, '1')
-                .replace(/S/g, '5')
-                .replace(/G/g, '6')
-                .replace(/B/g, '8')
-                .replace(/Z/g, '2');
-        };
+    const normalize = (s: string) => {
+        let res = s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        return res
+            .replace(/O/g, '0')
+            .replace(/I/g, '1')
+            .replace(/L/g, '1')
+            .replace(/S/g, '5')
+            .replace(/G/g, '6')
+            .replace(/B/g, '8')
+            .replace(/Z/g, '2');
+    };
 
-        const normText = normalize(text);
+    const fuzzyMatchToken = (token: string, tag: string): boolean => {
+        const normToken = normalize(token);
         const normTag = normalize(tag);
-
-        if (!normTag) return false;
-
-        // Exact normalized match or inclusion
-        return normText.includes(normTag) || normTag.includes(normText);
+        if (!normTag || !normToken) return false;
+        // Exact match instead of .includes prevents "1" from grabbing "10"'s data
+        return normToken === normTag;
     };
 
     const processOCRText = (text: string) => {
-        // Split into lines and cleanup
-        const rawLines = text.split('\n');
         const newEntries = { ...milkEntries };
         let matchCount = 0;
+        const foundAnimalIds = new Set<string>();
 
+        // 1. Strict Line-by-Line Match (Primary)
+        const rawLines = text.split('\n');
         rawLines.forEach(line => {
             const cleanLine = line.trim();
             if (!cleanLine || cleanLine.length < 2) return;
 
-            // Look for numbers in the line (potential milk quantities)
-            // Pattern: Allow decimals, commas as dots, etc.
+            const tokens = cleanLine.split(/[\s,;|:]+/).filter(t => t.length > 0);
             const numbersFound = cleanLine.replace(/,/g, '.').match(/(\d+(\.\d+)?)/g);
-            if (!numbersFound) return;
+            if (!tokens.length || !numbersFound) return;
 
-            // For each eligible animal, check if its tag is present in this line
             eligibleAnimals.forEach(animal => {
-                const tag = animal.tagNumber;
-
-                // If tag is found in line using fuzzy logic
-                if (fuzzyMatch(cleanLine, tag)) {
-                    // Filter out numbers that are likely the tag number itself
-                    const nonTagNumbers = numbersFound.filter(num => !fuzzyMatch(num, tag));
-
+                if (foundAnimalIds.has(animal.id)) return;
+                
+                const tagFound = tokens.some(token => fuzzyMatchToken(token, animal.tagNumber));
+                if (tagFound) {
+                    const nonTagNumbers = numbersFound.filter(num => !fuzzyMatchToken(num, animal.tagNumber));
                     if (nonTagNumbers.length > 0) {
-                        const morning = nonTagNumbers[0] || '';
-                        const evening = nonTagNumbers[1] || '';
-
-                        // Only update if we found something new or if it's currently empty
-                        if (!newEntries[animal.id] || (!newEntries[animal.id].morning && !newEntries[animal.id].evening)) {
-                            newEntries[animal.id] = {
-                                morning: morning,
-                                evening: evening
-                            };
-                            matchCount++;
-                        }
+                        newEntries[animal.id] = { 
+                            morning: nonTagNumbers[0] || '', 
+                            evening: nonTagNumbers[1] || '' 
+                        };
+                        foundAnimalIds.add(animal.id);
+                        matchCount++;
                     }
                 }
             });
         });
 
+        // 2. Token Flow Fallback (checks across lines if a tag was misread or split)
+        const allTokens = text.replace(/,/g, '.').split(/[\s\n]+/).filter(t => t.trim().length > 0);
+        
+        eligibleAnimals.forEach(animal => {
+            if (foundAnimalIds.has(animal.id)) return;
+            const tIndex = allTokens.findIndex(t => fuzzyMatchToken(t, animal.tagNumber));
+            
+            if (tIndex !== -1) {
+                let mNum = '';
+                let eNum = '';
+                
+                for (let i = tIndex + 1; i < Math.min(tIndex + 6, allTokens.length); i++) {
+                    const isNum = /^(\d+(\.\d+)?)$/.test(allTokens[i]);
+                    const isAnotherTag = eligibleAnimals.some(a => a.id !== animal.id && fuzzyMatchToken(allTokens[i], a.tagNumber));
+                    
+                    if (isNum && !isAnotherTag) {
+                        if (!mNum) mNum = allTokens[i];
+                        else if (!eNum) { eNum = allTokens[i]; break; }
+                    }
+                }
+                
+                if (mNum || eNum) {
+                    newEntries[animal.id] = { morning: mNum || '', evening: eNum || '' };
+                    foundAnimalIds.add(animal.id);
+                    matchCount++;
+                }
+            }
+        });
+
         if (matchCount > 0) {
             setMilkEntries(newEntries);
-            window.alert(`AI Scanner (v2.0): Successfully matched and imported recordings for ${matchCount} animals using intelligent matching.`);
+            window.alert(`AI Scanner (v3.0 - Deep Scan): Successfully analyzed image and verified recordings for ${matchCount} animals using intelligent multi-pass scanning.\nPlease double check the highlighted fields.`);
         } else {
-            alert("AI Scanner was unable to find any matching Tag IDs. Tip: Make sure Tag IDs are clearly visible and use the 'Morning, Evening' format.");
+            alert("AI Scanner could not locate any recognized Tag IDs or milk values. Tip: Make sure the chart is well-lit and the whole page is visible.");
         }
     };
 

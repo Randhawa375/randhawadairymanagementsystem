@@ -259,6 +259,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         farm: pendingCalvingAnimal.farm,
         motherId: pendingCalvingAnimal.id,
         image: photoUrl || undefined,
+        dateOfBirth: new Date(calvingDate).toISOString(),
         history: [{
           id: helpers.generateId(),
           type: 'GENERAL',

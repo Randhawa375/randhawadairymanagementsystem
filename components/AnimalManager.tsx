@@ -196,6 +196,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
             farm: data.farm || FarmLocation.MILKING_FARM,
             motherId: updatedAnimal.id, // Use existing animal ID
             image: calf.image,
+            dateOfBirth: new Date().toISOString(),
             history: [{
               id: generateId(),
               type: 'GENERAL',
@@ -241,6 +242,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
             farm: data.farm || FarmLocation.MILKING_FARM,
             motherId: motherId,
             image: calf.image,
+            dateOfBirth: now,
             history: [{
               id: generateId(),
               type: 'GENERAL',
@@ -364,6 +366,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
         motherId: calvingMother.id,
         image: uploadedImageUrls[0], // Primary image
         images: uploadedImageUrls,   // Gallery
+        dateOfBirth: new Date(calvingDate).toISOString(),
         history: [{
           id: generateId(),
           type: 'GENERAL',
