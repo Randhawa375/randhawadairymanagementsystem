@@ -109,6 +109,9 @@ const ReportsManager: React.FC<ReportsManagerProps> = ({
                   <td className="p-4">
                     <p className="font-bold text-slate-800 text-sm">{animal.category}</p>
                     <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider">{animal.farm}</p>
+                    <p className="mt-1 inline-block px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded text-[9px] font-black uppercase tracking-widest">
+                      Age: {helpers.calculateAge(animal.dateOfBirth)}
+                    </p>
                   </td>
                   <td className="p-4 text-center">
                     <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${animal.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
