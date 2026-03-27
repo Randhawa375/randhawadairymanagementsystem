@@ -74,6 +74,7 @@ const App: React.FC = () => {
           dateOfBirth,
           inseminationDate, 
           semenName, 
+          sireName, 
           expectedCalvingDate, 
           calvingDate, 
           remarks, 

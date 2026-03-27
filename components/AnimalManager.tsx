@@ -202,7 +202,9 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               type: 'GENERAL',
               date: new Date().toISOString(),
               details: `Born to Mother Tag: ${updatedAnimal.tagNumber}`,
+              semen: updatedAnimal.semenName || data.semenName || 'Unknown'
             }],
+            sireName: updatedAnimal.semenName || data.semenName || undefined,
             lastUpdated: new Date().toISOString()
           });
         });
@@ -248,7 +250,9 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
               type: 'GENERAL',
               date: now,
               details: `Born to Mother Tag: ${data.tagNumber}`,
+              semen: data.semenName || 'Unknown'
             }],
+            sireName: data.semenName || undefined,
             lastUpdated: now
           });
         });
@@ -374,6 +378,7 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
           details: `Born to Mother Tag: ${calvingMother.tagNumber}`,
           semen: calvingMother.semenName || 'Unknown' // Pass semen info to calf history
         }],
+        sireName: calvingMother.semenName || undefined,
         lastUpdated: now
       };
 

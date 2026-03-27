@@ -29,6 +29,7 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
     dateOfBirth: '',
     inseminationDate: '',
     semenName: '',
+    sireName: '',
     remarks: '',
     medications: '',
   });
@@ -321,6 +322,19 @@ const AnimalFormModal: React.FC<AnimalFormModalProps> = ({
                 type="date"
                 value={formData.dateOfBirth ? formData.dateOfBirth.split('T')[0] : ''}
                 onChange={e => setFormData(p => ({ ...p, dateOfBirth: e.target.value ? new Date(e.target.value).toISOString() : '' }))}
+                className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-slate-900 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                 Sire / Semen (باپ)
+              </label>
+              <input
+                type="text"
+                placeholder="Enter Sire Name or Straw No."
+                value={formData.sireName || ''}
+                onChange={e => setFormData(p => ({ ...p, sireName: e.target.value }))}
                 className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-slate-900 focus:border-indigo-600 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
               />
             </div>

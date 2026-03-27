@@ -91,6 +91,7 @@ import { Animal, ReproductiveStatus } from '../types';
 
 export const getSireInfo = (animal: Animal, allAnimals: Animal[]): string | null => {
   if (!animal) return null;
+  if (animal.sireName) return animal.sireName;
   const isCalf = animal.category.includes('Calf') || animal.status === ReproductiveStatus.OPEN || animal.status === ReproductiveStatus.CHILD;
   if (!isCalf) return null;
 

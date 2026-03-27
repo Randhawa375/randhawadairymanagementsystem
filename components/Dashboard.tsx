@@ -264,8 +264,10 @@ const Dashboard: React.FC<DashboardProps> = ({
           id: helpers.generateId(),
           type: 'GENERAL',
           date: calvingDate,
-          details: `Born to Mother Tag: ${pendingCalvingAnimal.tagNumber}`
+          details: `Born to Mother Tag: ${pendingCalvingAnimal.tagNumber}`,
+          semen: pendingCalvingAnimal.semenName || 'Unknown'
         }],
+        sireName: pendingCalvingAnimal.semenName || undefined,
         lastUpdated: now
       };
 

@@ -69,6 +69,7 @@ export interface Animal {
   dateOfBirth?: string;
   inseminationDate?: string;
   semenName?: string;
+  sireName?: string;
   expectedCalvingDate?: string;
   calvingDate?: string;
   remarks?: string;
