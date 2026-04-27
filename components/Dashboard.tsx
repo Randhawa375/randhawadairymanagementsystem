@@ -29,6 +29,7 @@ import AnimalFormModal from './AnimalFormModal';
 import ImageModal from './ImageModal';
 import * as helpers from '../utils/helpers';
 import { uploadImage } from '../utils/storage';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface DashboardProps {
   animals: Animal[];
@@ -613,22 +614,11 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {/* Detailed Farm Inventory Breakdowns */}
       <div className="grid grid-cols-1 gap-6">
-        <AdvancedFarmAnalytics 
+        <FarmAnalyticsCharts 
           title={activeFarm === 'all' ? "OVERALL HERD INVENTORY (کل جانوروں کی تفصیل)" : activeFarm === FarmLocation.MILKING_FARM ? "MILKING FARM (دودھ والا فارم)" : "CATTLE FARM (کٹی والا فارم)"} 
           color={activeFarm === 'all' ? "indigo" : activeFarm === FarmLocation.MILKING_FARM ? "indigo" : "emerald"} 
           icon={activeFarm === 'all' ? <Activity size={24} /> : activeFarm === FarmLocation.MILKING_FARM ? <Milk size={24} /> : <Beef size={24} />}
           animals={activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)}
-          categories={[
-            { label: 'NEWLY CALVED', subLabel: 'تازہ سوئی', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.status === ReproductiveStatus.NEWLY_CALVED).length, color: 'bg-emerald-500' },
-            { label: 'PREGNANT', subLabel: 'گابھن', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.status === ReproductiveStatus.PREGNANT).length, color: 'bg-emerald-600' },
-            { label: 'INSEMINATED', subLabel: 'ٹیکہ شدہ', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.status === ReproductiveStatus.INSEMINATED).length, color: 'bg-amber-500' },
-            { label: 'OPEN', subLabel: 'خالی', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.status === ReproductiveStatus.OPEN).length, color: 'bg-rose-500' },
-            { label: 'DRY', subLabel: 'خشک', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.status === ReproductiveStatus.DRY).length, color: 'bg-blue-500' },
-            { label: 'HEIFERS', subLabel: 'بچھڑیاں', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.category === AnimalCategory.HEIFER).length, color: 'bg-teal-500' },
-            { label: 'CATTLE', subLabel: 'بیل/گائے', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.category === AnimalCategory.CATTLE).length, color: 'bg-indigo-600' },
-            { label: 'FEMALE CALF', subLabel: 'بچھیا', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.category === AnimalCategory.CALF).length, color: 'bg-indigo-400' },
-            { label: 'MALE CALF', subLabel: 'بچھڑا', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.category === AnimalCategory.CALF_MALE).length, color: 'bg-slate-400' },
-          ]}
         />
       </div>
 
@@ -1058,13 +1048,41 @@ const DataBlock = ({ label, value, icon, color }: any) => {
   );
 };
 
-const AdvancedFarmAnalytics = ({ title, color, icon, animals, categories }: any) => {
+const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
   const total = animals.length;
   
+  const statusData = [
+    { name: 'Newly Calved', value: animals.filter((a: any) => a.status === ReproductiveStatus.NEWLY_CALVED).length, color: '#10b981' },
+    { name: 'Pregnant', value: animals.filter((a: any) => a.status === ReproductiveStatus.PREGNANT).length, color: '#059669' },
+    { name: 'Inseminated', value: animals.filter((a: any) => a.status === ReproductiveStatus.INSEMINATED).length, color: '#f59e0b' },
+    { name: 'Open', value: animals.filter((a: any) => a.status === ReproductiveStatus.OPEN).length, color: '#f43f5e' },
+    { name: 'Dry', value: animals.filter((a: any) => a.status === ReproductiveStatus.DRY).length, color: '#3b82f6' },
+  ].filter(d => d.value > 0);
+
+  const categoryData = [
+    { name: 'Heifers', value: animals.filter((a: any) => a.category === AnimalCategory.HEIFER).length, color: '#14b8a6' },
+    { name: 'Cattle', value: animals.filter((a: any) => a.category === AnimalCategory.CATTLE).length, color: '#4f46e5' },
+    { name: 'Female Calf', value: animals.filter((a: any) => a.category === AnimalCategory.CALF).length, color: '#818cf8' },
+    { name: 'Male Calf', value: animals.filter((a: any) => a.category === AnimalCategory.CALF_MALE).length, color: '#94a3b8' },
+  ].filter(d => d.value > 0);
+
   const styles: any = {
     indigo: 'border-indigo-200 bg-indigo-50/20 text-indigo-900',
     emerald: 'border-emerald-200 bg-emerald-50/20 text-emerald-900',
     blue: 'border-blue-200 bg-blue-50/20 text-blue-900'
+  };
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xl">
+          <p className="font-black text-sm text-slate-900 mb-1">{payload[0].name}</p>
+          <p className="font-bold text-xs text-slate-500">Count: <span className="text-slate-900">{payload[0].value}</span></p>
+          <p className="font-bold text-xs text-slate-500">Percentage: <span className="text-slate-900">{((payload[0].value / total) * 100).toFixed(1)}%</span></p>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -1081,32 +1099,60 @@ const AdvancedFarmAnalytics = ({ title, color, icon, animals, categories }: any)
         </div>
       </div>
 
-      <div className="space-y-5 relative z-10">
-        {categories.map((cat: any, idx: number) => {
-          if (cat.count === 0) return null;
-          const percentage = total > 0 ? (cat.count / total) * 100 : 0;
-          
-          return (
-            <div key={idx} className="group/bar cursor-pointer">
-              <div className="flex justify-between items-end mb-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-slate-700 tracking-tight">{cat.label}</span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">({cat.subLabel})</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-lg font-black text-slate-900 leading-none">{cat.count}</span>
-                  <span className="text-[9px] font-black text-slate-400">{percentage.toFixed(1)}%</span>
-                </div>
-              </div>
-              <div className="h-3 w-full bg-slate-200/50 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full ${cat.color} rounded-full transform origin-left transition-all duration-1000 ease-out group-hover/bar:brightness-110`}
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
+        <div className="bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm">
+          <h4 className="text-center font-black text-sm uppercase tracking-widest text-slate-500 mb-4">Reproductive Status</h4>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={90}
+                  paddingAngle={5}
+                  dataKey="value"
+                  animationDuration={1500}
+                  animationEasing="ease-out"
+                >
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm">
+          <h4 className="text-center font-black text-sm uppercase tracking-widest text-slate-500 mb-4">Herd Categories</h4>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={categoryData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={90}
+                  paddingAngle={5}
+                  dataKey="value"
+                  animationDuration={1500}
+                  animationEasing="ease-out"
+                >
+                  {categoryData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
     </div>
   );
