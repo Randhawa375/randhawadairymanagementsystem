@@ -1115,7 +1115,7 @@ const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
         <div className="bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm overflow-visible">
           <h4 className="text-center font-black text-sm uppercase tracking-widest text-slate-500 mb-4">Reproductive Status</h4>
           <div className="h-72">
@@ -1172,83 +1172,6 @@ const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
-        <div className="bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm overflow-hidden flex flex-col">
-          <h4 className="font-black text-sm uppercase tracking-widest text-slate-500 mb-4 pb-2 border-b border-slate-200/50">Reproductive Status Summary</h4>
-          <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-            {statusData.length > 0 ? statusData.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                <div className="flex items-center gap-3">
-                   <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: item.color }}></div>
-                   <span className="font-black text-slate-700 text-sm">{item.name}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-black text-lg text-slate-900">{item.value}</span>
-                  <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-md">{((item.value / total) * 100).toFixed(1)}%</span>
-                </div>
-              </div>
-            )) : <p className="text-sm font-bold text-slate-400 italic py-4">No data available.</p>}
-          </div>
-        </div>
-
-        <div className="bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm overflow-hidden flex flex-col">
-          <h4 className="font-black text-sm uppercase tracking-widest text-slate-500 mb-4 pb-2 border-b border-slate-200/50">Herd Categories Summary</h4>
-          <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-            {categoryData.length > 0 ? categoryData.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-                <div className="flex items-center gap-3">
-                   <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: item.color }}></div>
-                   <span className="font-black text-slate-700 text-sm">{item.name}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-black text-lg text-slate-900">{item.value}</span>
-                  <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-md">{((item.value / total) * 100).toFixed(1)}%</span>
-                </div>
-              </div>
-            )) : <p className="text-sm font-bold text-slate-400 italic py-4">No data available.</p>}
-          </div>
-        </div>
-      </div>
-      
-      <div className="mt-8 relative z-10 bg-white/60 rounded-[2rem] border border-white shadow-sm overflow-hidden">
-        <h4 className="font-black text-sm uppercase tracking-widest text-slate-500 p-6 pb-2 border-b border-slate-200/50">Detailed Animal List</h4>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-200/50">
-                <th className="p-4 pl-6 font-black text-slate-500 text-[10px] uppercase tracking-widest">Tag ID</th>
-                <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest">Category</th>
-                <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest">Status</th>
-                <th className="p-4 pr-6 font-black text-slate-500 text-[10px] uppercase tracking-widest text-right">Age</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {animals.map((a: any) => (
-                <tr key={a.id} className="hover:bg-white transition-colors">
-                  <td className="p-4 pl-6 font-black text-slate-900">{a.tagNumber}</td>
-                  <td className="p-4">
-                    <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-slate-200">{a.category}</span>
-                  </td>
-                  <td className="p-4">
-                     <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${a.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                        a.status === ReproductiveStatus.INSEMINATED ? 'bg-amber-50 text-amber-800 border-amber-200' :
-                        a.status === ReproductiveStatus.DRY ? 'bg-blue-50 text-blue-800 border-blue-200' :
-                        'bg-slate-50 text-slate-600 border-slate-300'
-                     }`}>
-                        {a.status}
-                     </span>
-                  </td>
-                  <td className="p-4 pr-6 text-right font-bold text-slate-500 text-sm">{helpers.calculateAge(a.dateOfBirth)}</td>
-                </tr>
-              ))}
-              {animals.length === 0 && (
-                <tr><td colSpan={4} className="p-8 text-center text-slate-400 font-bold text-sm">No animals found.</td></tr>
-              )}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
