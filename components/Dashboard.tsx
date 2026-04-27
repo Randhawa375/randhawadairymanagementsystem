@@ -352,17 +352,24 @@ const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-6">
       {/* Header & Search */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 md:p-6 rounded-3xl border border-slate-200 gap-4 shadow-sm">
-        <div className="text-center md:text-left">
-          <h2 className="text-2xl md:text-3xl font-black text-slate-900 leading-none uppercase tracking-tight">{farmName}</h2>
-          <p className="text-indigo-600 font-bold uppercase tracking-widest text-[10px] mt-2">Live Farm Intelligence (فارم کی تازہ ترین صورتحال)</p>
+      <div className="flex flex-col md:flex-row justify-between items-center bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 md:p-8 rounded-[2rem] border border-indigo-900 gap-6 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10 transform scale-150 translate-x-10 -translate-y-10">
+           <Activity size={200} className="text-indigo-400" />
         </div>
-        <div className="relative w-full md:w-96">
+        <div className="text-center md:text-left relative z-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 border border-indigo-500/30 rounded-full mb-3">
+             <Sparkles size={14} className="text-indigo-300" />
+             <span className="text-indigo-300 font-bold uppercase tracking-widest text-[9px]">Live Farm Intelligence</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-black text-white leading-none uppercase tracking-tight drop-shadow-md">{farmName}</h2>
+          <p className="text-indigo-200 font-medium uppercase tracking-widest text-[10px] mt-2 opacity-80">(فارم کی تازہ ترین صورتحال)</p>
+        </div>
+        <div className="relative w-full md:w-96 z-10">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
             type="text"
             placeholder="Search Tag Number (نمبر تلاش کریں)..."
-            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl outline-none focus:border-indigo-600 font-black text-slate-900 text-lg shadow-inner"
+            className="w-full pl-12 pr-4 py-3.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl outline-none focus:border-indigo-400 focus:bg-white/20 font-black text-white text-lg shadow-inner placeholder-indigo-200 transition-all"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -605,40 +612,24 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {/* Detailed Farm Inventory Breakdowns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {(activeFarm === 'all' || activeFarm === FarmLocation.MILKING_FARM) && (
-          <AdvancedFarmAnalytics 
-            title="MILKING FARM (دودھ والا فارم)" 
-            color="indigo" 
-            icon={<Milk size={24} />}
-            animals={allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM)}
-            categories={[
-              { label: 'NEWLY CALVED', subLabel: 'تازہ سوئی', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.NEWLY_CALVED).length, color: 'bg-emerald-500' },
-              { label: 'PREGNANT', subLabel: 'گابھن', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.PREGNANT).length, color: 'bg-emerald-600' },
-              { label: 'INSEMINATED', subLabel: 'ٹیکہ شدہ', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.INSEMINATED).length, color: 'bg-amber-500' },
-              { label: 'OPEN', subLabel: 'خالی', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.OPEN).length, color: 'bg-rose-500' },
-              { label: 'DRY', subLabel: 'خشک', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.DRY).length, color: 'bg-blue-500' },
-              { label: 'FEMALE CALF', subLabel: 'بچھیا', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.category === AnimalCategory.CALF).length, color: 'bg-indigo-400' },
-              { label: 'MALE CALF', subLabel: 'بچھڑا', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.category === AnimalCategory.CALF_MALE).length, color: 'bg-slate-400' },
-            ]}
-          />
-        )}
-        {(activeFarm === 'all' || activeFarm === FarmLocation.HEIFER_FARM) && (
-          <AdvancedFarmAnalytics 
-            title="CATTLE FARM (کٹی والا فارم)" 
-            color="emerald" 
-            icon={<Beef size={24} />}
-            animals={allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM)}
-            categories={[
-              { label: 'HEIFERS', subLabel: 'بچھڑیاں', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.HEIFER).length, color: 'bg-emerald-500' },
-              { label: 'OPEN', subLabel: 'خالی', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.status === ReproductiveStatus.OPEN).length, color: 'bg-rose-500' },
-              { label: 'PREGNANT', subLabel: 'گابھن', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.status === ReproductiveStatus.PREGNANT).length, color: 'bg-emerald-600' },
-              { label: 'CATTLE', subLabel: 'بیل/گائے', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.CATTLE).length, color: 'bg-blue-600' },
-              { label: 'FEMALE CALF', subLabel: 'بچھیا', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.CALF).length, color: 'bg-indigo-400' },
-              { label: 'MALE CALF', subLabel: 'بچھڑا', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.CALF_MALE).length, color: 'bg-slate-400' },
-            ]}
-          />
-        )}
+      <div className="grid grid-cols-1 gap-6">
+        <AdvancedFarmAnalytics 
+          title={activeFarm === 'all' ? "OVERALL HERD INVENTORY (کل جانوروں کی تفصیل)" : activeFarm === FarmLocation.MILKING_FARM ? "MILKING FARM (دودھ والا فارم)" : "CATTLE FARM (کٹی والا فارم)"} 
+          color={activeFarm === 'all' ? "indigo" : activeFarm === FarmLocation.MILKING_FARM ? "indigo" : "emerald"} 
+          icon={activeFarm === 'all' ? <Activity size={24} /> : activeFarm === FarmLocation.MILKING_FARM ? <Milk size={24} /> : <Beef size={24} />}
+          animals={activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)}
+          categories={[
+            { label: 'NEWLY CALVED', subLabel: 'تازہ سوئی', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.status === ReproductiveStatus.NEWLY_CALVED).length, color: 'bg-emerald-500' },
+            { label: 'PREGNANT', subLabel: 'گابھن', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.status === ReproductiveStatus.PREGNANT).length, color: 'bg-emerald-600' },
+            { label: 'INSEMINATED', subLabel: 'ٹیکہ شدہ', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.status === ReproductiveStatus.INSEMINATED).length, color: 'bg-amber-500' },
+            { label: 'OPEN', subLabel: 'خالی', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.status === ReproductiveStatus.OPEN).length, color: 'bg-rose-500' },
+            { label: 'DRY', subLabel: 'خشک', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.status === ReproductiveStatus.DRY).length, color: 'bg-blue-500' },
+            { label: 'HEIFERS', subLabel: 'بچھڑیاں', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.category === AnimalCategory.HEIFER).length, color: 'bg-teal-500' },
+            { label: 'CATTLE', subLabel: 'بیل/گائے', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.category === AnimalCategory.CATTLE).length, color: 'bg-indigo-600' },
+            { label: 'FEMALE CALF', subLabel: 'بچھیا', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.category === AnimalCategory.CALF).length, color: 'bg-indigo-400' },
+            { label: 'MALE CALF', subLabel: 'بچھڑا', count: (activeFarm === 'all' ? allAnimals : allAnimals.filter(a => a.farm === activeFarm)).filter(a => a.category === AnimalCategory.CALF_MALE).length, color: 'bg-slate-400' },
+          ]}
+        />
       </div>
 
       {/* Modals */}
