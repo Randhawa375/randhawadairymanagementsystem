@@ -1052,10 +1052,6 @@ const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
   const total = animals.length;
   
   const statusData = [
-const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
-  const total = animals.length;
-  
-  const statusData = [
     { name: 'Newly Calved', value: animals.filter((a: any) => a.status === ReproductiveStatus.NEWLY_CALVED).length, color: '#10b981' },
     { name: 'Pregnant', value: animals.filter((a: any) => a.status === ReproductiveStatus.PREGNANT).length, color: '#059669' },
     { name: 'Inseminated', value: animals.filter((a: any) => a.status === ReproductiveStatus.INSEMINATED).length, color: '#f59e0b' },
@@ -1124,7 +1120,7 @@ const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
           <h4 className="text-center font-black text-sm uppercase tracking-widest text-slate-500 mb-4">Reproductive Status</h4>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart overflow="visible">
+              <PieChart>
                 <Pie
                   data={statusData}
                   cx="50%"
@@ -1153,7 +1149,7 @@ const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
           <h4 className="text-center font-black text-sm uppercase tracking-widest text-slate-500 mb-4">Herd Categories</h4>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart overflow="visible">
+              <PieChart>
                 <Pie
                   data={categoryData}
                   cx="50%"
