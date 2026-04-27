@@ -337,6 +337,18 @@ const Dashboard: React.FC<DashboardProps> = ({
     setEditTargetId(null);
   };
 
+  const recentActivities = React.useMemo(() => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    return allAnimals.flatMap(a => 
+      (a.history || []).map(h => ({ ...h, animalTag: a.tagNumber, animalId: a.id }))
+    )
+    .filter(h => new Date(h.date) >= sevenDaysAgo)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 50); // limit to 50 for performance
+  }, [allAnimals]);
+
   return (
     <div className="space-y-6">
       {/* Header & Search */}
@@ -595,29 +607,37 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* Detailed Farm Inventory Breakdowns */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {(activeFarm === 'all' || activeFarm === FarmLocation.MILKING_FARM) && (
-          <InventorySection title="MILKING FARM (دودھ والا فارم)" color="indigo" icon={<Milk size={24} />}>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <SimpleBox label="NEWLY CALVED" subLabel="(تازہ سوئی)" value={allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.NEWLY_CALVED).length} />
-              <SimpleBox label="PREGNANT" subLabel="(گابھن)" value={allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.PREGNANT).length} />
-              <SimpleBox label="INSEMINATED" subLabel="(ٹیکہ شدہ)" value={allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.INSEMINATED).length} />
-              <SimpleBox label="OPEN" subLabel="(خالی)" value={allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.OPEN).length} />
-              <SimpleBox label="DRY" subLabel="(خشک)" value={allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.DRY).length} />
-              <SimpleBox label="FEMALE CALF" subLabel="(بچھیا)" value={allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.category === AnimalCategory.CALF).length} />
-              <SimpleBox label="MALE CALF" subLabel="(بچھڑا)" value={allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.category === AnimalCategory.CALF_MALE).length} />
-            </div>
-          </InventorySection>
+          <AdvancedFarmAnalytics 
+            title="MILKING FARM (دودھ والا فارم)" 
+            color="indigo" 
+            icon={<Milk size={24} />}
+            animals={allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM)}
+            categories={[
+              { label: 'NEWLY CALVED', subLabel: 'تازہ سوئی', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.NEWLY_CALVED).length, color: 'bg-emerald-500' },
+              { label: 'PREGNANT', subLabel: 'گابھن', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.PREGNANT).length, color: 'bg-emerald-600' },
+              { label: 'INSEMINATED', subLabel: 'ٹیکہ شدہ', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.INSEMINATED).length, color: 'bg-amber-500' },
+              { label: 'OPEN', subLabel: 'خالی', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.OPEN).length, color: 'bg-rose-500' },
+              { label: 'DRY', subLabel: 'خشک', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.status === ReproductiveStatus.DRY).length, color: 'bg-blue-500' },
+              { label: 'FEMALE CALF', subLabel: 'بچھیا', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.category === AnimalCategory.CALF).length, color: 'bg-indigo-400' },
+              { label: 'MALE CALF', subLabel: 'بچھڑا', count: allAnimals.filter(a => a.farm === FarmLocation.MILKING_FARM && a.category === AnimalCategory.CALF_MALE).length, color: 'bg-slate-400' },
+            ]}
+          />
         )}
         {(activeFarm === 'all' || activeFarm === FarmLocation.HEIFER_FARM) && (
-          <InventorySection title="CATTLE FARM (کٹی والا فارم)" color="emerald" icon={<Beef size={24} />}>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <SimpleBox label="HEIFERS" subLabel="(بچھڑیاں)" value={allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.HEIFER).length} />
-              <SimpleBox label="OPEN" subLabel="(خالی)" value={allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.status === ReproductiveStatus.OPEN).length} />
-              <SimpleBox label="PREGNANT" subLabel="(گابھن)" value={allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.status === ReproductiveStatus.PREGNANT).length} />
-              <SimpleBox label="CATTLE" subLabel="(بیل/گائے)" value={allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.CATTLE).length} />
-              <SimpleBox label="FEMALE CALF" subLabel="(بچھیا)" value={allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.CALF).length} />
-              <SimpleBox label="MALE CALF" subLabel="(بچھڑا)" value={allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.CALF_MALE).length} />
-            </div>
-          </InventorySection>
+          <AdvancedFarmAnalytics 
+            title="CATTLE FARM (کٹی والا فارم)" 
+            color="emerald" 
+            icon={<Beef size={24} />}
+            animals={allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM)}
+            categories={[
+              { label: 'HEIFERS', subLabel: 'بچھڑیاں', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.HEIFER).length, color: 'bg-emerald-500' },
+              { label: 'OPEN', subLabel: 'خالی', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.status === ReproductiveStatus.OPEN).length, color: 'bg-rose-500' },
+              { label: 'PREGNANT', subLabel: 'گابھن', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.status === ReproductiveStatus.PREGNANT).length, color: 'bg-emerald-600' },
+              { label: 'CATTLE', subLabel: 'بیل/گائے', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.CATTLE).length, color: 'bg-blue-600' },
+              { label: 'FEMALE CALF', subLabel: 'بچھیا', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.CALF).length, color: 'bg-indigo-400' },
+              { label: 'MALE CALF', subLabel: 'بچھڑا', count: allAnimals.filter(a => a.farm === FarmLocation.HEIFER_FARM && a.category === AnimalCategory.CALF_MALE).length, color: 'bg-slate-400' },
+            ]}
+          />
         )}
       </div>
 
@@ -880,6 +900,37 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       )
       }
+
+      {/* RECENT ACTIVITIES (Last 7 Days) */}
+      <div className="bg-white p-6 md:p-8 rounded-[2rem] border-2 border-slate-200 shadow-sm mt-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-5">
+          <History size={150} />
+        </div>
+        <div className="flex items-center gap-3 mb-6 relative z-10">
+          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+            <Activity size={24} />
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Recent Activities</h3>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Last 7 Days (گزشتہ 7 دن کی سرگرمیاں)</p>
+          </div>
+        </div>
+        
+        {recentActivities.length > 0 ? (
+          <div className="space-y-4 relative z-10 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {recentActivities.map(event => (
+              <RecentActivityItem key={event.id} event={event} onLoadDetails={onLoadDetails} onClick={() => {
+                setViewHistoryId(event.animalId);
+                onLoadDetails(event.animalId);
+              }} />
+            ))}
+          </div>
+        ) : (
+          <div className="py-12 text-center border-2 border-dashed border-slate-200 rounded-2xl relative z-10">
+            <p className="font-black text-slate-400 uppercase tracking-widest text-xs">No activities recorded in the last 7 days.</p>
+          </div>
+        )}
+      </div>
     </div >
   );
 };
@@ -1012,6 +1063,102 @@ const DataBlock = ({ label, value, icon, color }: any) => {
         <p className="text-[7.5px] font-black uppercase tracking-widest opacity-60 truncate">{label}</p>
       </div>
       <p className="text-sm font-black leading-tight truncate">{value}</p>
+    </div>
+  );
+};
+
+const AdvancedFarmAnalytics = ({ title, color, icon, animals, categories }: any) => {
+  const total = animals.length;
+  
+  const styles: any = {
+    indigo: 'border-indigo-200 bg-indigo-50/20 text-indigo-900',
+    emerald: 'border-emerald-200 bg-emerald-50/20 text-emerald-900',
+    blue: 'border-blue-200 bg-blue-50/20 text-blue-900'
+  };
+
+  return (
+    <div className={`p-6 md:p-8 rounded-[2.5rem] border-2 shadow-sm ${styles[color]} relative overflow-hidden group`}>
+      <div className="absolute top-0 right-0 p-8 opacity-5 transform group-hover:scale-110 transition-transform duration-700">
+        {icon}
+      </div>
+      
+      <div className="flex items-center gap-4 mb-8 relative z-10">
+        <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100">{icon}</div>
+        <div>
+          <h3 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tight leading-none">{title}</h3>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Total Population: {total}</p>
+        </div>
+      </div>
+
+      <div className="space-y-5 relative z-10">
+        {categories.map((cat: any, idx: number) => {
+          if (cat.count === 0) return null;
+          const percentage = total > 0 ? (cat.count / total) * 100 : 0;
+          
+          return (
+            <div key={idx} className="group/bar cursor-pointer">
+              <div className="flex justify-between items-end mb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-slate-700 tracking-tight">{cat.label}</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">({cat.subLabel})</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-lg font-black text-slate-900 leading-none">{cat.count}</span>
+                  <span className="text-[9px] font-black text-slate-400">{percentage.toFixed(1)}%</span>
+                </div>
+              </div>
+              <div className="h-3 w-full bg-slate-200/50 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full ${cat.color} rounded-full transform origin-left transition-all duration-1000 ease-out group-hover/bar:brightness-110`}
+                  style={{ width: `${percentage}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const RecentActivityItem = ({ event, onClick }: any) => {
+  const getEventStyle = (type: string, result?: string) => {
+    if (type === 'CALVING') return 'bg-rose-50 border-rose-100 text-rose-900';
+    if (type === 'INSEMINATION') return 'bg-amber-50 border-amber-100 text-amber-900';
+    if (type === 'PREGNANCY_CHECK') return result === 'Positive' ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-200 text-slate-900';
+    if (type === 'FARM_SHIFT') return 'bg-blue-50 border-blue-100 text-blue-900';
+    return 'bg-slate-50 border-slate-200 text-slate-900';
+  };
+
+  const getEventIcon = (type: string) => {
+    if (type === 'CALVING') return <Baby size={16} />;
+    if (type === 'INSEMINATION') return <Activity size={16} />;
+    if (type === 'PREGNANCY_CHECK') return <Timer size={16} />;
+    if (type === 'FARM_SHIFT') return <Wind size={16} />;
+    return <History size={16} />;
+  };
+
+  return (
+    <div onClick={onClick} className={`flex items-start md:items-center flex-col md:flex-row gap-4 p-4 rounded-2xl border cursor-pointer hover:shadow-md transition-all ${getEventStyle(event.type, event.result)}`}>
+      <div className="flex items-center gap-4 min-w-[150px]">
+        <div className="p-2 bg-white rounded-xl shadow-sm opacity-80">{getEventIcon(event.type)}</div>
+        <div>
+          <span className="block text-sm font-black tracking-tight leading-none mb-1">#{event.animalTag}</span>
+          <span className="text-[9px] font-black uppercase tracking-widest opacity-60">{helpers.formatDate(event.date)}</span>
+        </div>
+      </div>
+      
+      <div className="flex-1">
+        <p className="text-sm font-bold opacity-90 leading-tight">{event.details}</p>
+        {(event.semen || event.result) && (
+          <div className="flex gap-2 mt-2">
+            {event.semen && <span className="px-2 py-0.5 bg-white/60 rounded text-[9px] font-black uppercase tracking-widest border border-white/40">Semen: {event.semen}</span>}
+            {event.result && <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${event.result === 'Positive' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{event.result}</span>}
+          </div>
+        )}
+      </div>
+      
+      <div className="hidden md:block opacity-50"><ChevronRight size={20} /></div>
     </div>
   );
 };
