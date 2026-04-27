@@ -339,13 +339,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const recentActivities = React.useMemo(() => {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     return allAnimals.flatMap(a => 
-      (a.history || []).map(h => ({ ...h, animalTag: a.tagNumber, animalId: a.id }))
+      (a.history || []).map(h => ({ ...h, animalTag: a.tagNumber, animalId: a.id, currentStatus: a.status }))
     )
-    .filter(h => new Date(h.date) >= sevenDaysAgo)
+    .filter(h => new Date(h.date) >= thirtyDaysAgo)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 50); // limit to 50 for performance
   }, [allAnimals]);
@@ -882,7 +882,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       )
       }
 
-      {/* RECENT ACTIVITIES (Last 7 Days) */}
+      {/* RECENT ACTIVITIES (Last 30 Days) */}
       <div className="bg-white p-6 md:p-8 rounded-[2rem] border-2 border-slate-200 shadow-sm mt-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-5">
           <History size={150} />
@@ -893,7 +893,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
           <div>
             <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Recent Activities</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Last 7 Days (گزشتہ 7 دن کی سرگرمیاں)</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Last 1 Month (گزشتہ 1 مہینے کی سرگرمیاں)</p>
           </div>
         </div>
         
@@ -908,7 +908,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         ) : (
           <div className="py-12 text-center border-2 border-dashed border-slate-200 rounded-2xl relative z-10">
-            <p className="font-black text-slate-400 uppercase tracking-widest text-xs">No activities recorded in the last 7 days.</p>
+            <p className="font-black text-slate-400 uppercase tracking-widest text-xs">No activities recorded in the last 1 month.</p>
           </div>
         )}
       </div>
@@ -1052,6 +1052,10 @@ const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
   const total = animals.length;
   
   const statusData = [
+const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
+  const total = animals.length;
+  
+  const statusData = [
     { name: 'Newly Calved', value: animals.filter((a: any) => a.status === ReproductiveStatus.NEWLY_CALVED).length, color: '#10b981' },
     { name: 'Pregnant', value: animals.filter((a: any) => a.status === ReproductiveStatus.PREGNANT).length, color: '#059669' },
     { name: 'Inseminated', value: animals.filter((a: any) => a.status === ReproductiveStatus.INSEMINATED).length, color: '#f59e0b' },
@@ -1085,6 +1089,22 @@ const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
     return null;
   };
 
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, value }: any) => {
+    const RADIAN = Math.PI / 180;
+    // Calculate position in the center of the donut ring
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    if (percent < 0.04) return null; // Hide label for very small slices to prevent overlap
+
+    return (
+      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-xs font-black shadow-black drop-shadow-md">
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
   return (
     <div className={`p-6 md:p-8 rounded-[2.5rem] border-2 shadow-sm ${styles[color]} relative overflow-hidden group`}>
       <div className="absolute top-0 right-0 p-8 opacity-5 transform group-hover:scale-110 transition-transform duration-700">
@@ -1099,22 +1119,24 @@ const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
-        <div className="bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10 mb-8">
+        <div className="bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm overflow-visible">
           <h4 className="text-center font-black text-sm uppercase tracking-widest text-slate-500 mb-4">Reproductive Status</h4>
-          <div className="h-64">
+          <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart overflow="visible">
                 <Pie
                   data={statusData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
+                  innerRadius={50}
+                  outerRadius={80}
                   paddingAngle={5}
                   dataKey="value"
                   animationDuration={1500}
                   animationEasing="ease-out"
+                  label={renderCustomizedLabel}
+                  labelLine={false}
                 >
                   {statusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -1127,21 +1149,23 @@ const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
           </div>
         </div>
 
-        <div className="bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm">
+        <div className="bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm overflow-visible">
           <h4 className="text-center font-black text-sm uppercase tracking-widest text-slate-500 mb-4">Herd Categories</h4>
-          <div className="h-64">
+          <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart overflow="visible">
                 <Pie
                   data={categoryData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
+                  innerRadius={50}
+                  outerRadius={80}
                   paddingAngle={5}
                   dataKey="value"
                   animationDuration={1500}
                   animationEasing="ease-out"
+                  label={renderCustomizedLabel}
+                  labelLine={false}
                 >
                   {categoryData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -1154,48 +1178,167 @@ const FarmAnalyticsCharts = ({ title, color, icon, animals }: any) => {
           </div>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
+        <div className="bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm overflow-hidden flex flex-col">
+          <h4 className="font-black text-sm uppercase tracking-widest text-slate-500 mb-4 pb-2 border-b border-slate-200/50">Reproductive Status Summary</h4>
+          <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            {statusData.length > 0 ? statusData.map((item, idx) => (
+              <div key={idx} className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                <div className="flex items-center gap-3">
+                   <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: item.color }}></div>
+                   <span className="font-black text-slate-700 text-sm">{item.name}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="font-black text-lg text-slate-900">{item.value}</span>
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-md">{((item.value / total) * 100).toFixed(1)}%</span>
+                </div>
+              </div>
+            )) : <p className="text-sm font-bold text-slate-400 italic py-4">No data available.</p>}
+          </div>
+        </div>
+
+        <div className="bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm overflow-hidden flex flex-col">
+          <h4 className="font-black text-sm uppercase tracking-widest text-slate-500 mb-4 pb-2 border-b border-slate-200/50">Herd Categories Summary</h4>
+          <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            {categoryData.length > 0 ? categoryData.map((item, idx) => (
+              <div key={idx} className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                <div className="flex items-center gap-3">
+                   <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: item.color }}></div>
+                   <span className="font-black text-slate-700 text-sm">{item.name}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="font-black text-lg text-slate-900">{item.value}</span>
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-md">{((item.value / total) * 100).toFixed(1)}%</span>
+                </div>
+              </div>
+            )) : <p className="text-sm font-bold text-slate-400 italic py-4">No data available.</p>}
+          </div>
+        </div>
+      </div>
+      
+      <div className="mt-8 relative z-10 bg-white/60 rounded-[2rem] border border-white shadow-sm overflow-hidden">
+        <h4 className="font-black text-sm uppercase tracking-widest text-slate-500 p-6 pb-2 border-b border-slate-200/50">Detailed Animal List</h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50 border-b border-slate-200/50">
+                <th className="p-4 pl-6 font-black text-slate-500 text-[10px] uppercase tracking-widest">Tag ID</th>
+                <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest">Category</th>
+                <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest">Status</th>
+                <th className="p-4 pr-6 font-black text-slate-500 text-[10px] uppercase tracking-widest text-right">Age</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {animals.map((a: any) => (
+                <tr key={a.id} className="hover:bg-white transition-colors">
+                  <td className="p-4 pl-6 font-black text-slate-900">{a.tagNumber}</td>
+                  <td className="p-4">
+                    <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-slate-200">{a.category}</span>
+                  </td>
+                  <td className="p-4">
+                     <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${a.status === ReproductiveStatus.PREGNANT ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                        a.status === ReproductiveStatus.INSEMINATED ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                        a.status === ReproductiveStatus.DRY ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                        'bg-slate-50 text-slate-600 border-slate-300'
+                     }`}>
+                        {a.status}
+                     </span>
+                  </td>
+                  <td className="p-4 pr-6 text-right font-bold text-slate-500 text-sm">{helpers.calculateAge(a.dateOfBirth)}</td>
+                </tr>
+              ))}
+              {animals.length === 0 && (
+                <tr><td colSpan={4} className="p-8 text-center text-slate-400 font-bold text-sm">No animals found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
 
 const RecentActivityItem = ({ event, onClick }: any) => {
-  const getEventStyle = (type: string, result?: string) => {
-    if (type === 'CALVING') return 'bg-rose-50 border-rose-100 text-rose-900';
-    if (type === 'INSEMINATION') return 'bg-amber-50 border-amber-100 text-amber-900';
-    if (type === 'PREGNANCY_CHECK') return result === 'Positive' ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-200 text-slate-900';
-    if (type === 'FARM_SHIFT') return 'bg-blue-50 border-blue-100 text-blue-900';
-    return 'bg-slate-50 border-slate-200 text-slate-900';
+  const isBirth = event.type === 'CALVING';
+  const isInseminated = event.type === 'INSEMINATION';
+  const isPregnancyCheck = event.type === 'PREGNANCY_CHECK';
+  const isStatusChange = event.type === 'STATUS_CHANGE';
+  const isShift = event.type === 'FARM_SHIFT';
+
+  // Make distinct visual styles for each major event
+  const getEventStyle = () => {
+    if (isBirth) return 'bg-gradient-to-br from-rose-50 to-pink-100 border-rose-200 text-rose-950 shadow-sm';
+    if (isInseminated) return 'bg-gradient-to-br from-amber-50 to-orange-100 border-amber-200 text-amber-950 shadow-sm';
+    if (isPregnancyCheck) {
+      return event.result === 'Positive' 
+        ? 'bg-gradient-to-br from-emerald-50 to-green-100 border-emerald-200 text-emerald-950 shadow-sm' 
+        : 'bg-gradient-to-br from-slate-50 to-gray-100 border-slate-200 text-slate-900 shadow-sm';
+    }
+    if (isStatusChange && event.details.toLowerCase().includes('dry')) return 'bg-gradient-to-br from-blue-50 to-cyan-100 border-blue-200 text-blue-950 shadow-sm';
+    if (isShift) return 'bg-gradient-to-br from-indigo-50 to-violet-100 border-indigo-200 text-indigo-950 shadow-sm';
+    
+    return 'bg-white border-slate-200 text-slate-900 shadow-sm';
   };
 
-  const getEventIcon = (type: string) => {
-    if (type === 'CALVING') return <Baby size={16} />;
-    if (type === 'INSEMINATION') return <Activity size={16} />;
-    if (type === 'PREGNANCY_CHECK') return <Timer size={16} />;
-    if (type === 'FARM_SHIFT') return <Wind size={16} />;
-    return <History size={16} />;
+  const getEventIcon = () => {
+    if (isBirth) return <Baby size={24} className="text-rose-600" />;
+    if (isInseminated) return <Activity size={24} className="text-amber-600" />;
+    if (isPregnancyCheck) return <Timer size={24} className={event.result === 'Positive' ? 'text-emerald-600' : 'text-slate-600'} />;
+    if (isStatusChange && event.details.toLowerCase().includes('dry')) return <Milk size={24} className="text-blue-600 opacity-50" />;
+    if (isShift) return <Wind size={24} className="text-indigo-600" />;
+    return <History size={24} className="text-slate-500" />;
+  };
+
+  const getEventTitle = () => {
+    if (isBirth) return 'BIRTH RECORD (تازہ سوئی)';
+    if (isInseminated) return 'INSEMINATED (ٹیکہ لگا)';
+    if (isPregnancyCheck) return 'PREGNANCY CHECK (گابھن چیک)';
+    if (isStatusChange) {
+       if (event.details.toLowerCase().includes('dry')) return 'DECLARED DRY (خشک)';
+       if (event.details.toLowerCase().includes('open')) return 'DECLARED OPEN (خالی)';
+       return 'STATUS UPDATE';
+    }
+    if (isShift) return 'FARM SHIFT (فارم تبدیلی)';
+    return 'RECORD UPDATE';
   };
 
   return (
-    <div onClick={onClick} className={`flex items-start md:items-center flex-col md:flex-row gap-4 p-4 rounded-2xl border cursor-pointer hover:shadow-md transition-all ${getEventStyle(event.type, event.result)}`}>
-      <div className="flex items-center gap-4 min-w-[150px]">
-        <div className="p-2 bg-white rounded-xl shadow-sm opacity-80">{getEventIcon(event.type)}</div>
+    <div onClick={onClick} className={`flex flex-col md:flex-row gap-4 p-5 rounded-[2rem] border-2 cursor-pointer hover:scale-[1.01] transition-transform ${getEventStyle()}`}>
+      <div className="flex items-center gap-5 md:w-64 shrink-0 border-b md:border-b-0 md:border-r border-black/5 pb-4 md:pb-0 pr-0 md:pr-4">
+        <div className="p-3.5 bg-white/60 backdrop-blur-sm rounded-2xl shadow-sm">{getEventIcon()}</div>
         <div>
-          <span className="block text-sm font-black tracking-tight leading-none mb-1">#{event.animalTag}</span>
-          <span className="text-[9px] font-black uppercase tracking-widest opacity-60">{helpers.formatDate(event.date)}</span>
+          <span className="block text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">{helpers.formatDate(event.date)}</span>
+          <span className="text-2xl font-black tracking-tight leading-none">#{event.animalTag}</span>
         </div>
       </div>
       
-      <div className="flex-1">
-        <p className="text-sm font-bold opacity-90 leading-tight">{event.details}</p>
-        {(event.semen || event.result) && (
-          <div className="flex gap-2 mt-2">
-            {event.semen && <span className="px-2 py-0.5 bg-white/60 rounded text-[9px] font-black uppercase tracking-widest border border-white/40">Semen: {event.semen}</span>}
-            {event.result && <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${event.result === 'Positive' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>{event.result}</span>}
+      <div className="flex-1 flex flex-col justify-center">
+        <h4 className="text-xs font-black uppercase tracking-widest opacity-70 mb-1">{getEventTitle()}</h4>
+        <p className="text-base font-bold opacity-90 leading-tight">{event.details}</p>
+        
+        {(event.semen || event.result || event.currentStatus) && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {event.currentStatus && (
+               <span className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm ${event.currentStatus === 'Pregnant' ? 'bg-emerald-500 text-white' : event.currentStatus === 'Inseminated' ? 'bg-amber-500 text-white' : event.currentStatus === 'Dry' ? 'bg-blue-500 text-white' : event.currentStatus === 'Newly Calved' ? 'bg-rose-500 text-white' : 'bg-white/60 text-slate-700 border border-black/5'}`}>
+                 Status: {event.currentStatus}
+               </span>
+            )}
+            {event.semen && (
+              <span className="px-3 py-1 bg-white/60 backdrop-blur-sm rounded-xl text-[10px] font-black uppercase tracking-widest border border-black/5 shadow-sm">
+                Semen: <span className="text-amber-700">{event.semen}</span>
+              </span>
+            )}
+            {event.result && (
+              <span className={`px-3 py-1 backdrop-blur-sm rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm ${event.result === 'Positive' ? 'bg-emerald-500 text-white' : 'bg-white/60 border border-black/5'}`}>
+                Result: {event.result}
+              </span>
+            )}
           </div>
         )}
       </div>
       
-      <div className="hidden md:block opacity-50"><ChevronRight size={20} /></div>
+      <div className="hidden md:flex items-center justify-center pl-4 opacity-30"><ChevronRight size={24} /></div>
     </div>
   );
 };

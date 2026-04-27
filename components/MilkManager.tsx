@@ -1,22 +1,29 @@
 
 import React, { useState, useMemo } from 'react';
-import { Milk, Search, Save, History, CheckCircle2, Loader2, Calendar } from 'lucide-react';
-import { Animal, MilkRecord, AnimalCategory, ReproductiveStatus } from '../types';
+import { Milk, Search, Save, History, CheckCircle2, Loader2, Calendar, Plus, X, Wind, Timer, Activity, Baby, ChevronRight } from 'lucide-react';
+import { Animal, MilkRecord, AnimalCategory, ReproductiveStatus, HistoryEvent } from '../types';
 import { formatDate, generateId } from '../utils/helpers';
 import { supabase } from '../lib/supabase';
 // @ts-ignore
 import Tesseract from 'tesseract.js';
+import AnimalFormModal from './AnimalFormModal';
 
 interface MilkManagerProps {
     allAnimals: Animal[];
     onSaveMilkRecords: (records: MilkRecord[]) => Promise<void>;
     onLoadDetails: (id: string) => void;
+    onSave: (animal: Animal, calves?: any[]) => Promise<void>;
+    onBatchSave: (animals: Animal[]) => Promise<void>;
+    onDelete: (id: string) => void;
 }
 
 const MilkManager: React.FC<MilkManagerProps> = ({
     allAnimals,
     onSaveMilkRecords,
-    onLoadDetails
+    onLoadDetails,
+    onSave,
+    onBatchSave,
+    onDelete
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -25,15 +32,88 @@ const MilkManager: React.FC<MilkManagerProps> = ({
     const [saveStatus, setSaveStatus] = useState('');
     const [isScanning, setIsScanning] = useState(false);
     const [scanProgress, setScanProgress] = useState(0);
+    const [isGuideOpen, setIsGuideOpen] = useState(false);
+    const [manuallyAddedAnimalIds, setManuallyAddedAnimalIds] = useState<Set<string>>(new Set());
+    const [manuallyRemovedAnimalIds, setManuallyRemovedAnimalIds] = useState<Set<string>>(new Set());
+    const [addAnimalSearch, setAddAnimalSearch] = useState('');
+    const [isAddDropdownOpen, setIsAddDropdownOpen] = useState(false);
+    const [isAnimalModalOpen, setIsAnimalModalOpen] = useState(false);
+    const [editTargetId, setEditTargetId] = useState<string | null>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-    // Eligible animals: Milking category OR Newly Calved status
+    const editTarget = useMemo(() => {
+        return allAnimals.find(a => a.id === editTargetId);
+    }, [allAnimals, editTargetId]);
+
+    const addHistoryEvent = (animal: Animal, event: Omit<HistoryEvent, 'id'>): Animal => {
+        const newEvent: HistoryEvent = { ...event, id: generateId() };
+        return {
+            ...animal,
+            history: [newEvent, ...(animal.history || [])],
+            lastUpdated: new Date().toISOString()
+        };
+    };
+
+    const handleSaveAnimal = async (data: Partial<Animal>, calvesData?: any[]) => {
+        if (editTarget) {
+            let updatedAnimal: Animal = { ...editTarget, ...data, lastUpdated: new Date().toISOString() };
+            if (data.status && data.status !== editTarget.status) {
+                updatedAnimal = addHistoryEvent(updatedAnimal, {
+                    type: 'GENERAL',
+                    date: new Date().toISOString(),
+                    details: `Status manually changed to: ${data.status}`,
+                    remarks: data.remarks
+                });
+            }
+            await onSave(updatedAnimal, calvesData);
+        } else {
+            // New animal
+            const newAnimalId = generateId();
+            const now = new Date().toISOString();
+            let newAnimal: Animal = {
+                id: newAnimalId,
+                tagNumber: data.tagNumber || '',
+                name: data.name,
+                category: data.category || AnimalCategory.MILKING,
+                status: data.status || ReproductiveStatus.OPEN,
+                farm: data.farm || allAnimals[0]?.farm || 'Farm',
+                history: [{
+                    id: generateId(),
+                    type: 'GENERAL',
+                    date: now,
+                    details: 'Animal registered from Milk Manager'
+                }],
+                lastUpdated: now,
+                ...data
+            };
+            await onSave(newAnimal, calvesData);
+            setManuallyAddedAnimalIds(prev => new Set(prev).add(newAnimal.id));
+        }
+        setIsAnimalModalOpen(false);
+        setEditTargetId(null);
+    };
+
+    const handleDeleteAnimal = async (id: string) => {
+        if (window.confirm("Are you sure you want to permanently delete this animal?")) {
+            await onDelete(id);
+        }
+    };
+
+    // Eligible animals: Milking category OR Newly Calved status, plus manual overrides
     const eligibleAnimals = useMemo(() => {
-        return allAnimals.filter(a =>
+        const autoEligible = allAnimals.filter(a =>
             (a.category === AnimalCategory.MILKING || a.status === ReproductiveStatus.NEWLY_CALVED) &&
             a.status !== ReproductiveStatus.SOLD
         );
-    }, [allAnimals]);
+        const addedAnimals = allAnimals.filter(a => manuallyAddedAnimalIds.has(a.id));
+        
+        const combined = [...autoEligible];
+        addedAnimals.forEach(a => {
+            if (!combined.some(c => c.id === a.id)) combined.push(a);
+        });
+
+        return combined.filter(a => !manuallyRemovedAnimalIds.has(a.id));
+    }, [allAnimals, manuallyAddedAnimalIds, manuallyRemovedAnimalIds]);
 
     const filteredAnimals = useMemo(() => {
         return eligibleAnimals.filter(a =>
@@ -164,26 +244,34 @@ const MilkManager: React.FC<MilkManagerProps> = ({
             const cleanLine = line.trim();
             if (!cleanLine || cleanLine.length < 2) return;
 
+            // Look for a pattern that resembles 3 consecutive tokens: ID, Morning, Evening
+            // E.g. "101 12.5 10.0"
             const tokens = cleanLine.split(/[\s,;|:]+/).filter(t => t.length > 0);
-            const numbersFound = cleanLine.replace(/,/g, '.').match(/(\d+(\.\d+)?)/g);
-            if (!tokens.length || !numbersFound) return;
-
-            eligibleAnimals.forEach(animal => {
-                if (foundAnimalIds.has(animal.id)) return;
-                
-                const tagFound = tokens.some(token => fuzzyMatchToken(token, animal.tagNumber));
-                if (tagFound) {
-                    const nonTagNumbers = numbersFound.filter(num => !fuzzyMatchToken(num, animal.tagNumber));
-                    if (nonTagNumbers.length > 0) {
-                        newEntries[animal.id] = { 
-                            morning: nonTagNumbers[0] || '', 
-                            evening: nonTagNumbers[1] || '' 
-                        };
-                        foundAnimalIds.add(animal.id);
-                        matchCount++;
-                    }
+            
+            // Try to match specific row format if possible
+            if (tokens.length >= 3) {
+                // Check if the last two or three tokens are numbers
+                const numbersFound = cleanLine.replace(/,/g, '.').match(/(\d+(\.\d+)?)/g);
+                if (numbersFound && numbersFound.length >= 2) {
+                   eligibleAnimals.forEach(animal => {
+                       if (foundAnimalIds.has(animal.id)) return;
+                       
+                       const tagFound = tokens.some(token => fuzzyMatchToken(token, animal.tagNumber));
+                       if (tagFound) {
+                           // Extract the milk values (assuming they are the numbers that aren't the tag)
+                           const nonTagNumbers = numbersFound.filter(num => !fuzzyMatchToken(num, animal.tagNumber));
+                           if (nonTagNumbers.length > 0) {
+                               newEntries[animal.id] = { 
+                                   morning: nonTagNumbers[0] || '', 
+                                   evening: nonTagNumbers[1] || '' 
+                               };
+                               foundAnimalIds.add(animal.id);
+                               matchCount++;
+                           }
+                       }
+                   });
                 }
-            });
+            }
         });
 
         // 2. Token Flow Fallback (checks across lines if a tag was misread or split)
@@ -219,7 +307,7 @@ const MilkManager: React.FC<MilkManagerProps> = ({
             setMilkEntries(newEntries);
             window.alert(`AI Scanner (v3.0 - Deep Scan): Successfully analyzed image and verified recordings for ${matchCount} animals using intelligent multi-pass scanning.\nPlease double check the highlighted fields.`);
         } else {
-            alert("AI Scanner could not locate any recognized Tag IDs or milk values. Tip: Make sure the chart is well-lit and the whole page is visible.");
+            alert("AI Scanner could not locate any recognized Tag IDs or milk values. Please ensure you are following the formatting criteria by clicking 'How to format sheet?'.");
         }
     };
 
@@ -292,6 +380,66 @@ const MilkManager: React.FC<MilkManagerProps> = ({
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
+                        <div className="relative">
+                            <button 
+                                onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
+                                className="h-full px-6 py-3 bg-indigo-50 text-indigo-700 border-2 border-indigo-200 rounded-xl font-black flex items-center gap-2 hover:bg-indigo-100 transition-colors whitespace-nowrap"
+                            >
+                                <Plus size={20} /> Add Animal
+                            </button>
+                            {isAddDropdownOpen && (
+                                <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 p-3">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search any animal tag..." 
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold mb-2 outline-none focus:border-indigo-500"
+                                        value={addAnimalSearch}
+                                        onChange={(e) => setAddAnimalSearch(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <div className="max-h-48 overflow-y-auto space-y-1">
+                                        {allAnimals
+                                            .filter(a => a.tagNumber.toLowerCase().includes(addAnimalSearch.toLowerCase()) && !eligibleAnimals.some(e => e.id === a.id))
+                                            .slice(0, 10)
+                                            .map(a => (
+                                            <div 
+                                                key={a.id} 
+                                                onClick={() => {
+                                                    setManuallyAddedAnimalIds(prev => new Set(prev).add(a.id));
+                                                    setManuallyRemovedAnimalIds(prev => {
+                                                        const next = new Set(prev);
+                                                        next.delete(a.id);
+                                                        return next;
+                                                    });
+                                                    setIsAddDropdownOpen(false);
+                                                    setAddAnimalSearch('');
+                                                }}
+                                                className="px-3 py-2 hover:bg-indigo-50 rounded-lg cursor-pointer flex justify-between items-center"
+                                            >
+                                                <span className="font-black text-slate-800">#{a.tagNumber}</span>
+                                                <span className="text-[10px] font-bold text-slate-400">{a.status}</span>
+                                            </div>
+                                        ))}
+                                        {allAnimals.filter(a => a.tagNumber.toLowerCase().includes(addAnimalSearch.toLowerCase()) && !eligibleAnimals.some(e => e.id === a.id)).length === 0 && (
+                                            <div className="p-2">
+                                                <p className="text-center text-xs text-slate-400 font-bold mb-2">No available animals found.</p>
+                                                <button 
+                                                    onClick={() => {
+                                                        setEditTargetId(null);
+                                                        setIsAnimalModalOpen(true);
+                                                        setIsAddDropdownOpen(false);
+                                                        setAddAnimalSearch('');
+                                                    }}
+                                                    className="w-full py-2 bg-indigo-100 text-indigo-700 rounded-lg font-bold text-xs hover:bg-indigo-200"
+                                                >
+                                                    + Create New Animal
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                         <div className="relative flex items-center gap-3 bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-2">
                             <Calendar size={20} className="text-slate-500" />
                             <input
@@ -303,16 +451,24 @@ const MilkManager: React.FC<MilkManagerProps> = ({
                         </div>
                     </div>
                 </div>
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isScanning || isSaving}
-                    className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black flex flex-col items-center justify-center gap-1 hover:bg-emerald-700 transition-all shadow-lg w-full md:w-auto min-w-[150px] disabled:opacity-70"
-                >
-                    <div className="flex items-center gap-2 text-lg">
-                        {isScanning ? <Loader2 className="animate-spin" size={24} /> : <div className="bg-white/20 p-1 rounded-lg"><Search size={20} /></div>}
-                        <span>{isScanning ? 'Scanning...' : 'AI Scan Record'}</span>
-                    </div>
-                </button>
+                <div className="flex flex-col gap-2 w-full md:w-auto">
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isScanning || isSaving}
+                        className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black flex flex-col items-center justify-center gap-1 hover:bg-emerald-700 transition-all shadow-lg w-full min-w-[150px] disabled:opacity-70"
+                    >
+                        <div className="flex items-center gap-2 text-lg">
+                            {isScanning ? <Loader2 className="animate-spin" size={24} /> : <div className="bg-white/20 p-1 rounded-lg"><Search size={20} /></div>}
+                            <span>{isScanning ? 'Scanning...' : 'AI Scan Record'}</span>
+                        </div>
+                    </button>
+                    <button 
+                        onClick={() => setIsGuideOpen(true)}
+                        className="text-xs font-black text-emerald-600 hover:text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg py-1.5 transition-colors uppercase tracking-widest text-center"
+                    >
+                        Scanner Guide
+                    </button>
+                </div>
                 <input
                     type="file"
                     ref={fileInputRef}
@@ -378,6 +534,7 @@ const MilkManager: React.FC<MilkManagerProps> = ({
                                 <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest text-center">Morning (صبح)</th>
                                 <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest text-center">Evening (شام)</th>
                                 <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest text-center">Total (کل)</th>
+                                <th className="p-4 font-black text-slate-500 text-[10px] uppercase tracking-widest text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -422,11 +579,40 @@ const MilkManager: React.FC<MilkManagerProps> = ({
                                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Liters</span>
                                         </div>
                                     </td>
+                                    <td className="p-4">
+                                        <div className="flex gap-1 justify-center">
+                                            <button 
+                                                onClick={() => {
+                                                    setEditTargetId(animal.id);
+                                                    setIsAnimalModalOpen(true);
+                                                    if (!animal.history) onLoadDetails(animal.id);
+                                                }}
+                                                className="text-slate-400 hover:text-indigo-500 transition-colors p-2 hover:bg-indigo-50 rounded-lg"
+                                                title="Edit Animal"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                                            </button>
+                                            <button 
+                                                onClick={() => setManuallyRemovedAnimalIds(prev => new Set(prev).add(animal.id))}
+                                                className="text-slate-400 hover:text-amber-500 transition-colors p-2 hover:bg-amber-50 rounded-lg"
+                                                title="Remove from Today's List"
+                                            >
+                                                <X size={20} />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDeleteAnimal(animal.id)}
+                                                className="text-slate-400 hover:text-rose-500 transition-colors p-2 hover:bg-rose-50 rounded-lg"
+                                                title="Delete Animal Permanently"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
                             ))}
                             {filteredAnimals.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="p-12 text-center">
+                                    <td colSpan={6} className="p-12 text-center">
                                         <div className="flex flex-col items-center gap-3 text-slate-400">
                                             <Search size={48} />
                                             <p className="font-black uppercase tracking-widest text-xs">No eligible animals found matching your search.</p>
@@ -476,10 +662,103 @@ const MilkManager: React.FC<MilkManagerProps> = ({
                                     />
                                 </div>
                             </div>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => {
+                                        setEditTargetId(animal.id);
+                                        setIsAnimalModalOpen(true);
+                                        if (!animal.history) onLoadDetails(animal.id);
+                                    }}
+                                    className="flex-1 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-xs uppercase tracking-widest flex justify-center items-center gap-2"
+                                >
+                                    Edit
+                                </button>
+                                <button 
+                                    onClick={() => setManuallyRemovedAnimalIds(prev => new Set(prev).add(animal.id))}
+                                    className="flex-1 py-2 bg-amber-50 text-amber-600 rounded-lg font-bold text-xs uppercase tracking-widest flex justify-center items-center gap-2"
+                                >
+                                    Remove
+                                </button>
+                                <button 
+                                    onClick={() => handleDeleteAnimal(animal.id)}
+                                    className="flex-1 py-2 bg-rose-50 text-rose-600 rounded-lg font-bold text-xs uppercase tracking-widest flex justify-center items-center gap-2"
+                                >
+                                    Delete
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
             </div>
+
+            {/* AI Scanner Guide Modal */}
+            {isGuideOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-2xl relative">
+                        <button 
+                            onClick={() => setIsGuideOpen(false)}
+                            className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-50 p-2 rounded-full transition-colors"
+                        >
+                            <X size={24} />
+                        </button>
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="bg-emerald-100 p-3 rounded-2xl text-emerald-600">
+                                <Search size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-black text-slate-900">AI Scanner Guide</h3>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Maximize Accuracy (سکین کو بہتر بنائیں)</p>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
+                                <p className="text-amber-900 text-sm font-bold">Because the scanner uses browser-based AI without an expensive internet API, it relies heavily on clear formatting and neat handwriting.</p>
+                            </div>
+
+                            <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-3">
+                                <h4 className="font-black text-slate-900 text-sm uppercase tracking-widest">Crucial Criteria for Success</h4>
+                                <ul className="list-disc list-inside space-y-2 text-sm font-bold text-slate-700">
+                                    <li><strong className="text-slate-900">Block Letters/Numbers:</strong> Write neatly, avoiding cursive or connected numbers.</li>
+                                    <li><strong className="text-slate-900">Column Format:</strong> Write entries in a strict order: <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">Tag ID</span> <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">Morning</span> <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Evening</span>.</li>
+                                    <li><strong className="text-slate-900">Spacing:</strong> Leave clear, large spaces between the columns. Do not squeeze them together.</li>
+                                    <li><strong className="text-slate-900">Missing Values:</strong> If an animal did not give milk, write <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded">0</span> instead of leaving it blank.</li>
+                                    <li><strong className="text-slate-900">Lighting:</strong> Take the photo in bright daylight without shadows over the paper.</li>
+                                    <li><strong className="text-slate-900">High Contrast:</strong> Use dark ink on bright white paper.</li>
+                                </ul>
+                            </div>
+                            
+                            <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-2xl">
+                                <p className="text-xs font-black text-indigo-900 uppercase tracking-widest mb-2">Example of a perfect row format:</p>
+                                <p className="font-mono bg-white p-3 rounded-xl border border-indigo-100 text-lg tracking-[0.25em] font-bold text-center">451 &nbsp;&nbsp;&nbsp; 12.5 &nbsp;&nbsp;&nbsp; 14.0</p>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setIsGuideOpen(false)}
+                            className="mt-8 w-full bg-slate-900 text-white font-black py-4 rounded-xl hover:bg-slate-800 transition-colors"
+                        >
+                            Understood, Close
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Animal Form Modal */}
+            {isAnimalModalOpen && (
+                <AnimalFormModal
+                    isOpen={isAnimalModalOpen}
+                    onClose={() => {
+                        setIsAnimalModalOpen(false);
+                        setEditTargetId(null);
+                    }}
+                    onSave={handleSaveAnimal}
+                    initialData={editTarget}
+                    mothersList={allAnimals}
+                    allAnimals={allAnimals}
+                    editAnimal={editTarget}
+                />
+            )}
         </div>
     );
 };

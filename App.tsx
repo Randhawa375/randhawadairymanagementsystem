@@ -539,6 +539,9 @@ const App: React.FC = () => {
             allAnimals={animals}
             onSaveMilkRecords={onSyncMilkRecords}
             onLoadDetails={fetchAnimalDetails}
+            onSave={onSyncAnimal}
+            onBatchSave={onSyncBatch}
+            onDelete={onSyncDelete}
           />
         )}
 
