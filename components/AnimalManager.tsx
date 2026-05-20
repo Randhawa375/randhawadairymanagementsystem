@@ -12,7 +12,9 @@ import {
   getGestationDays,
   getDaysSinceLastUpdate,
   getSireInfo,
-  calculateAge
+  calculateAge,
+  getInseminationRepeats,
+  getDaysSinceInsemination
 } from '../utils/helpers';
 import { uploadImage } from '../utils/storage';
 
@@ -523,6 +525,9 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                   : '--'
               }
             />
+            {searchedAnimal.status === ReproductiveStatus.INSEMINATED && getInseminationRepeats(searchedAnimal) > 0 && (
+               <SummaryItem label="Repeats (دوبارہ)" value={`${getInseminationRepeats(searchedAnimal)} Time(s)`} />
+            )}
             <SummaryItem label="Last Update" value={formatDate(searchedAnimal.lastUpdated)} />
           </div>
 
@@ -631,6 +636,12 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                       <span className={`text-[10px] font-black uppercase ${daysToPregnancyCheck <= 0 ? 'text-amber-700' : 'text-blue-700'}`}>
                         {daysToPregnancyCheck <= 0 ? 'Check Required' : `${daysToPregnancyCheck} days to check`}
                       </span>
+                    </div>
+                  )}
+                  {animal.status === ReproductiveStatus.INSEMINATED && getInseminationRepeats(animal) > 0 && (
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg border bg-rose-50 border-rose-200">
+                      <Activity size={12} className="text-rose-600" />
+                      <span className="text-[10px] font-black uppercase text-rose-700">Repeats: {getInseminationRepeats(animal)}</span>
                     </div>
                   )}
                 </div>
@@ -748,6 +759,15 @@ const AnimalManager: React.FC<AnimalManagerProps> = ({
                             <Timer size={12} className={daysToPregnancyCheck <= 0 ? 'text-amber-600' : 'text-blue-600'} />
                             <span className={`text-[10px] font-black uppercase ${daysToPregnancyCheck <= 0 ? 'text-amber-700' : 'text-blue-700'}`}>
                               {daysToPregnancyCheck <= 0 ? 'Check Required' : `${daysToPregnancyCheck} days to check`}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {animal.status === ReproductiveStatus.INSEMINATED && getInseminationRepeats(animal) > 0 && (
+                          <div className="flex items-center gap-1.5 mt-1 px-3 py-0.5 rounded-lg border bg-rose-50 border-rose-200">
+                            <Activity size={12} className="text-rose-600" />
+                            <span className="text-[10px] font-black uppercase text-rose-700">
+                              Repeats: {getInseminationRepeats(animal)}
                             </span>
                           </div>
                         )}

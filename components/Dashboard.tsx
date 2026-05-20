@@ -79,6 +79,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [pendingCheckAnimal, setPendingCheckAnimal] = useState<Animal | null>(null);
   const [pendingCalvingAnimal, setPendingCalvingAnimal] = useState<Animal | null>(null);
   const [pendingDryAnimal, setPendingDryAnimal] = useState<Animal | null>(null);
+  const [pendingRepeatCheckAnimal, setPendingRepeatCheckAnimal] = useState<Animal | null>(null);
 
   const [calvingDate, setCalvingDate] = useState(new Date().toISOString().split('T')[0]);
   const [calvingDescription, setCalvingDescription] = useState('');
@@ -125,6 +126,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     if (a.status !== ReproductiveStatus.INSEMINATED || !a.inseminationDate) return false;
     const days = helpers.getDaysToPregnancyCheck(a.inseminationDate, a.category);
     return days !== null && days <= 0;
+  }), [alertsList]);
+
+  const animalsDueForRepeatCheck = React.useMemo(() => alertsList.filter(a => {
+    if (a.status !== ReproductiveStatus.INSEMINATED || !a.inseminationDate) return false;
+    const days = helpers.getDaysSinceInsemination(a.inseminationDate);
+    return days !== null && days >= 20 && days <= 24;
   }), [alertsList]);
 
   const animalsReadyForCalving = React.useMemo(() => alertsList.filter(a => {
@@ -201,6 +208,23 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
     onUpdateAnimal(updatedAnimal);
     setPendingCheckAnimal(null);
+  };
+
+  const handleRepeatResult = (animal: Animal, result: 'open') => {
+    let updatedAnimal: Animal = { ...animal, lastUpdated: new Date().toISOString() };
+    if (result === 'open') {
+      updatedAnimal.status = ReproductiveStatus.OPEN;
+      updatedAnimal.inseminationDate = undefined;
+      updatedAnimal.semenName = undefined;
+      updatedAnimal = addHistoryEvent(updatedAnimal, {
+        type: 'STATUS_CHANGE',
+        date: new Date().toISOString(),
+        details: `Marked OPEN after returning to heat (Repeated around 22 days).`,
+        result: 'Negative'
+      });
+    }
+    onUpdateAnimal(updatedAnimal);
+    setPendingRepeatCheckAnimal(null);
   };
 
   const handleDryAction = (animal: Animal, confirm: boolean) => {
@@ -482,6 +506,10 @@ const Dashboard: React.FC<DashboardProps> = ({
               <DataBlock label="Semen (ٹیکہ)" value={searchedAnimal.semenName} icon={<Activity size={14} />} />
             )}
 
+            {searchedAnimal.status === ReproductiveStatus.INSEMINATED && helpers.getInseminationRepeats(searchedAnimal) > 0 && (
+              <DataBlock label="Repeats (دوبارہ)" value={`${helpers.getInseminationRepeats(searchedAnimal)} Time(s)`} icon={<RotateCcw size={14} />} color="rose" />
+            )}
+
             {searchedAnimal.expectedCalvingDate && (
               <DataBlock label="Expected Calving" value={helpers.formatDate(searchedAnimal.expectedCalvingDate)} icon={<Calendar size={14} />} color="emerald" />
             )}
@@ -519,7 +547,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {/* ALERTS HUB */}
-      {(animalsDueForDry.length > 0 || animalsDueForCheck.length > 0 || animalsReadyForCalving.length > 0 || animalsReadyForInsemination.length > 0) && (
+      {(animalsDueForDry.length > 0 || animalsDueForCheck.length > 0 || animalsReadyForCalving.length > 0 || animalsReadyForInsemination.length > 0 || animalsDueForRepeatCheck.length > 0) && (
         <div className="no-print space-y-4">
           <div className="flex items-center gap-3 px-2">
             <div className="bg-rose-100 p-2 rounded-xl text-rose-600 animate-pulse">
@@ -582,6 +610,24 @@ const Dashboard: React.FC<DashboardProps> = ({
                   color="amber"
                   info="45 Day Milestone"
                   onClick={() => setPendingCheckAnimal(a)}
+                />
+              ))}
+            </AlertGroup>
+
+            <AlertGroup
+              title="22-Day Repeat Alert"
+              subTitle="22 دن کا چیک"
+              count={animalsDueForRepeatCheck.length}
+              color="rose"
+              icon={<RotateCcw size={20} />}
+            >
+              {animalsDueForRepeatCheck.map(a => (
+                <AlertItem
+                  key={a.id}
+                  animal={a}
+                  color="rose"
+                  info={`${helpers.getDaysSinceInsemination(a.inseminationDate!)} Days Post-AI`}
+                  onClick={() => setPendingRepeatCheckAnimal(a)}
                 />
               ))}
             </AlertGroup>
@@ -673,6 +719,28 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </button>
               </div>
               <button onClick={() => setPendingCheckAnimal(null)} className="mt-8 text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:text-slate-600 transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingRepeatCheckAnimal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden border-t-[16px] border-rose-400 animate-in zoom-in duration-300">
+            <div className="p-10 text-center">
+              <h3 className="text-3xl font-black text-slate-900 mb-2">22-Day Repeat Check (ہیٹ چیک)</h3>
+              <p className="font-black text-slate-500 mb-8 uppercase tracking-widest text-[10px]">Did Tag #{pendingRepeatCheckAnimal.tagNumber} return to heat?</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button onClick={() => handleRepeatResult(pendingRepeatCheckAnimal, 'open')} className="flex flex-col items-center gap-3 p-6 rounded-[2rem] bg-rose-50 border-2 border-rose-200 text-rose-900 hover:bg-rose-100 transition-all">
+                  <RotateCcw size={32} />
+                  <span className="font-black text-lg">Repeated (Open / خالی)</span>
+                </button>
+                <button onClick={() => setPendingRepeatCheckAnimal(null)} className="flex flex-col items-center gap-3 p-6 rounded-[2rem] bg-emerald-50 border-2 border-emerald-200 text-emerald-900 hover:bg-emerald-100 transition-all">
+                  <CheckCircle2 size={32} />
+                  <span className="font-black text-lg">Did Not Repeat</span>
+                </button>
+              </div>
+              <button onClick={() => setPendingRepeatCheckAnimal(null)} className="mt-8 text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:text-slate-600 transition-colors">Cancel</button>
             </div>
           </div>
         </div>

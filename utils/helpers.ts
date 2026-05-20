@@ -40,6 +40,12 @@ export const getDaysSinceCalving = (calvingDate: string) => {
   return differenceInCalendarDays(new Date(), date);
 };
 
+export const getDaysSinceInsemination = (inseminationDate: string) => {
+  const date = new Date(inseminationDate);
+  if (!isValid(date)) return null;
+  return differenceInCalendarDays(new Date(), date);
+};
+
 export const getGestationDays = (inseminationDate: string) => {
   const date = new Date(inseminationDate);
   if (!isValid(date)) return null;
@@ -88,6 +94,20 @@ export const calculateAge = (dateOfBirth?: string | null): string => {
 export const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
 
 import { Animal, ReproductiveStatus } from '../types';
+
+export const getInseminationRepeats = (animal: Animal): number => {
+  if (!animal.history) return 0;
+  let count = 0;
+  for (const event of animal.history) {
+    if (event.type === 'CALVING') {
+      break;
+    }
+    if (event.type === 'INSEMINATION') {
+      count++;
+    }
+  }
+  return Math.max(0, count - 1);
+};
 
 export const getSireInfo = (animal: Animal, allAnimals: Animal[]): string | null => {
   if (!animal) return null;
