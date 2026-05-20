@@ -131,7 +131,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const animalsDueForRepeatCheck = React.useMemo(() => alertsList.filter(a => {
     if (a.status !== ReproductiveStatus.INSEMINATED || !a.inseminationDate) return false;
     const days = helpers.getDaysSinceInsemination(a.inseminationDate);
-    return days !== null && days >= 20 && days <= 24;
+    return days !== null && days >= 22 && days <= 25;
   }), [alertsList]);
 
   const animalsReadyForCalving = React.useMemo(() => alertsList.filter(a => {
